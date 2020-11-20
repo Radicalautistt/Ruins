@@ -17,6 +17,7 @@ executable ruins
 
   other-modules:       Paths_ruins
                        Ruins.SDL
+                       Ruins.Apecs
 
   build-depends:       base ^>=4.13.0.0
                      , lens
@@ -30,6 +31,7 @@ executable ruins
                      , sdl2
                      , sdl2-ttf
                      , sdl2-mixer
+                     , template-haskell
                      , hashable
                      , unordered-containers
 
