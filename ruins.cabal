@@ -1,0 +1,60 @@
+cabal-version:       2.4
+
+name:                ruins
+version:             0.1.0.0
+-- synopsis:
+-- description:
+-- bug-reports:
+license:             NONE
+license-file:        LICENSE
+author:              Radical autist
+maintainer:          56npyfygybys@gmail.com
+-- copyright:
+category:            Game
+
+executable ruins
+  main-is:             Main.hs
+
+  other-modules:       Paths_ruins
+                       Ruins.SDL
+
+  build-depends:       base ^>=4.13.0.0
+                     , lens
+                     , mtl
+                     , transformers
+                     , managed
+                     , text
+                     , filepath
+                     , apecs
+                     , apecs-physics
+                     , sdl2
+                     , sdl2-ttf
+                     , sdl2-mixer
+                     , hashable
+                     , unordered-containers
+
+
+  default-extensions:  TypeApplications
+                       ApplicativeDo
+                       TypeFamilies
+                       BangPatterns
+                       StrictData
+                       PackageImports
+                       LambdaCase
+                       DataKinds
+                       PatternSynonyms
+                       BlockArguments
+                       RecordWildCards
+                       OverloadedStrings
+                       DerivingVia
+                       DerivingStrategies
+                       DeriveGeneric
+                       DeriveFoldable
+                       DeriveFunctor
+                       DeriveTraversable
+                       OverloadedLabels
+                       GeneralizedNewtypeDeriving
+                       ScopedTypeVariables
+
+  hs-source-dirs:      src
+  default-language:    Haskell2010
