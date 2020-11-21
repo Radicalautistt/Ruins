@@ -1,5 +1,7 @@
+{-# Options -fno-warn-orphans #-}
 {-# Language TemplateHaskell #-}
 {-# Language FlexibleInstances #-}
+{-# Language StandaloneDeriving #-}
 {-# Language MultiParamTypeClasses #-}
 
 module Ruins.Components (
@@ -10,11 +12,20 @@ module Ruins.Components (
      , Window (..)
      , Renderer (..)
      , Resources (..)
+     , ResourceMap
+     , SpriteSheet (..)
      -- | Hide constructor.
      , Name
      -- | Export smart constructor instead.
      , mkName
+     , getName
      , initRuins
+     , spriteSheet
+     , animations
+     , sprites
+     , fonts
+     , sounds
+     , music
      , pattern Window
      , pattern Renderer
      ) where
@@ -34,7 +45,9 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import System.FilePath.Posix (dropExtension)
 import Ruins.Apecs (makeGlobalComponent)
+import Control.Lens (makeLenses)
 import Control.Monad.Reader (asks)
+import Control.Monad.Managed (Managed)
 
 newtype Time = MkTime Double
   deriving (Semigroup, Monoid) via Sum Double
@@ -54,7 +67,7 @@ newtype HealthPoints = MkHealthPoints Double
 
 -- | Filename without file extension.
 -- | Used as a key for ResourceMap.
-newtype Name = MkName Text
+newtype Name = MkName { getName :: Text }
   deriving stock Eq
   deriving newtype Hashable
 
@@ -63,22 +76,29 @@ newtype Name = MkName Text
 mkName :: FilePath -> Name
 mkName = MkName . Text.pack . dropExtension
 
+data Animation
+
+data SpriteSheet = MkSpriteSheet {
+     _spriteSheet :: SDL.Texture
+   , _animations :: HashMap Name Animation
+}
+
 type ResourceMap resource = HashMap Name resource
 
 data Resources = MkResources {
-     sprites :: ResourceMap ()
-   , fonts :: ResourceMap Font.Font
-   , sounds :: ResourceMap Mixer.Chunk
-   , music :: ResourceMap Mixer.Music
+     _sprites :: ResourceMap SpriteSheet
+   , _fonts :: ResourceMap Font.Font
+   , _sounds :: ResourceMap Mixer.Chunk
+   , _music :: ResourceMap Mixer.Music
 }
 
 instance Semigroup Resources where
   MkResources {..} <> MkResources sp f s m =
     MkResources
-      (sprites <> sp)
-      (fonts <> f)
-      (sounds <> s)
-      (music <> m)
+      (_sprites <> sp)
+      (_fonts <> f)
+      (_sounds <> s)
+      (_music <> m)
 
 instance Monoid Resources where
   mempty =
@@ -126,8 +146,17 @@ Apecs.makeWorld "Ruins" [
   , ''Action
   , ''Window
   , ''Renderer
+  , ''Resources
   , ''HealthPoints
   , ''APhysics.Physics
   ]
 
-type RSystem result = Apecs.System Ruins result
+concat <$> traverse makeLenses [
+  ''SpriteSheet
+  , ''Resources
+  ]
+
+type RSystem result = Apecs.SystemT Ruins Managed result
+
+-- | We need this to actually use Window/Renderer pattern.
+deriving newtype instance MonadFail m => MonadFail (Apecs.SystemT world m)

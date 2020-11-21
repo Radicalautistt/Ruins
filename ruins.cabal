@@ -18,15 +18,18 @@ executable ruins
   other-modules:       Paths_ruins
                        Ruins.SDL
                        Ruins.Apecs
+                       Ruins.Resources
                        Ruins.Components
 
   build-depends:       base ^>=4.13.0.0
                      , lens
                      , mtl
                      , transformers
+                     , async
                      , managed
                      , text
                      , filepath
+                     , directory
                      , apecs
                      , apecs-physics
                      , sdl2
