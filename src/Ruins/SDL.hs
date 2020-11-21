@@ -1,17 +1,26 @@
+{-# Language ViewPatterns #-}
+{-# Language TemplateHaskell #-}
+
 module Ruins.SDL (
        initSDL
      , quitSDL
      , Rect
      , mkRectangle
+     , makeKeyPressed
      ) where
 
 import qualified SDL
 import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
 import Data.Text (Text)
+import qualified Data.Text as Text
 import Foreign.C.Types (CInt)
 import Control.Exception (bracket)
+import Control.Lens ((&~), (%=))
+import Data.Text.Lens (packed)
 import Control.Monad.Managed (Managed, managed)
+import qualified Language.Haskell.TH as THaskell
+import qualified Language.Haskell.TH.Syntax as THaskell
 
 type Rect = SDL.Rectangle CInt
 
@@ -45,3 +54,26 @@ quitSDL = do
   Font.quit
   Mixer.quit
   SDL.quit
+
+keyPressed :: SDL.Keycode -> SDL.KeyboardEventData -> Bool
+keyPressed key keyboardData =
+  SDL.keyboardEventKeyMotion keyboardData == SDL.Pressed
+  && SDL.keysymKeycode (SDL.keyboardEventKeysym keyboardData) == key
+
+-- | Generate pattern of the form:
+-- | pattern PRESSED_KEYNAME :: SDL.EventPayload
+-- | pattern PRESSED_KEYNAME <- SDL.KeyboardEvent (keyPressed KeycodeKeyName -> True)
+makeKeyPressed :: THaskell.Name -> THaskell.DecsQ
+makeKeyPressed keyName = do
+  let patternName = THaskell.mkName name
+  patternType <- [t| SDL.EventPayload |]
+  patternBody <- [p| SDL.KeyboardEvent (keyPressed $(THaskell.conE keyName) -> True) |]
+
+  pure [ THaskell.PragmaD (THaskell.CompleteP [patternName] Nothing)
+       , THaskell.PatSynSigD patternName patternType
+       , THaskell.PatSynD patternName (THaskell.PrefixPatSyn []) THaskell.Unidir patternBody
+       ]
+   
+  where name = THaskell.showName keyName &~ do
+                 packed %= Text.replace "Keycode" "PRESSED_"
+                 packed %= Text.toUpper
