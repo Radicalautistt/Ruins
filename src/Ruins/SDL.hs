@@ -52,6 +52,7 @@ initSDL = do
 quitSDL :: IO ()
 quitSDL = do
   Font.quit
+  Mixer.closeAudio
   Mixer.quit
   SDL.quit
 
