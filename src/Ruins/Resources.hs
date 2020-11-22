@@ -1,5 +1,6 @@
 {-# Language RankNTypes #-}
 {-# Language FlexibleContexts #-}
+{-# Language TupleSections #-}
 
 module Ruins.Resources (
        getResource
@@ -10,20 +11,23 @@ import qualified SDL
 import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
 import qualified Apecs
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as LBString
 import qualified Data.Text as Text
 import Data.Foldable (for_)
+import Data.Vector (Vector)
 import qualified Data.Vector as Vector
 import qualified Data.HashMap.Strict as HMap
 import System.Directory (listDirectory)
 import System.FilePath.Posix ((</>))
 import Control.Exception (bracket)
 import qualified Control.Concurrent.Async as Async
-import Control.Lens (Lens', over, to, (^.))
+import Control.Lens (Lens', set, over, to, (^.))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
 import Control.Monad.Trans (lift)
-import Ruins.Components (RSystem, SpriteSheet (..), Resources (..), Name, getName,
-                         ResourceMap, sprites, fonts, sounds, music, mkName, pattern Renderer)
+import Ruins.Components (RSystem, SpriteSheet (..), Resources (..), Name, getName, Animation (..),
+                         ResourceMap, animations, sprites, fonts, sounds, music, mkName, pattern Renderer)
 
 mkAssetPath :: FilePath -> FilePath
 mkAssetPath = (</>) "assets"
@@ -39,6 +43,9 @@ soundsPath = mkAssetPath "sounds"
 
 musicPath :: FilePath
 musicPath = mkAssetPath "music"
+
+animationsPath :: FilePath
+animationsPath = mkAssetPath "animations"
 
 class ManagedResource resource where
   manageResource :: FilePath -> RSystem resource
@@ -75,6 +82,19 @@ instance ManagedResource SDL.Texture where
 
     withResource loadTexture SDL.destroyTexture filePath
 
+loadAnimations :: RSystem ()
+loadAnimations = do
+  animationFiles <- liftIO (Vector.fromList <$> listDirectory animationsPath)
+  results <- liftIO $ Async.forConcurrently animationFiles \ fileName -> do
+               fileContents <- LBString.readFile (animationsPath </> fileName)
+               either fail (pure . (mkName fileName, ))
+                 (Aeson.eitherDecode @(Vector Animation) fileContents)
+
+  for_ results \ (name, animationVector) ->
+    let insertAnimations = set animations animationVector
+    in Apecs.modify Apecs.global
+        (over sprites (HMap.update (Just . insertAnimations) name))
+
 loadResources :: RSystem ()
 loadResources = do
   -- | Doesn't work if there is an inner directory
@@ -88,6 +108,8 @@ loadResources = do
   for_ fontFiles (insertResource fonts)
   for_ soundFiles (insertResource sounds)
   for_ musicFiles (insertResource music)
+
+  loadAnimations
 
   where contentsOf = liftIO . listDirectory
         insertSprite spriteName = do
