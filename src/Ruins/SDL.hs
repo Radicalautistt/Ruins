@@ -12,6 +12,7 @@ module Ruins.SDL (
 import qualified SDL
 import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
+import qualified Linear
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Foreign.C.Types (CInt)
@@ -26,7 +27,7 @@ type Rect = SDL.Rectangle CInt
 
 mkRectangle :: (CInt, CInt) -> (CInt, CInt) -> Rect
 mkRectangle (x, y) (width, height) =
-  SDL.Rectangle (SDL.P (SDL.V2 x y)) (SDL.V2 width height)
+  SDL.Rectangle (SDL.P (Linear.V2 x y)) (Linear.V2 width height)
 
 withWindow :: Text -> SDL.WindowConfig -> Managed SDL.Window
 withWindow windowName windowConfig = managed do

@@ -3,7 +3,10 @@
 {-# Language ViewPatterns #-}
 {-# Language TemplateHaskell #-}
 
-module Ruins.EventHandler where
+module Ruins.EventHandler (
+       escapePressed
+     , handleKeyboardState
+     ) where
 
 import qualified SDL
 import SDL.Input.Keyboard.Codes
@@ -23,9 +26,6 @@ escapePressed :: SDL.EventPayload -> Bool
 escapePressed = \ case
   PRESSED_ESCAPE -> True
   _otherwise -> False
-
-playerSpeed :: Speed
-playerSpeed = 220
 
 increaseVelocityOf :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> RSystem ()
 increaseVelocityOf entity axisLens = Apecs.modify entity \ (VEL _ _, MkSpeed speed) ->

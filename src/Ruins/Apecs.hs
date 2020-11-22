@@ -4,7 +4,6 @@
 
 module Ruins.Apecs where
 
-import qualified SDL
 import qualified Apecs
 import qualified Apecs.Util as Apecs
 import qualified Apecs.Physics as APhysics
@@ -44,11 +43,11 @@ newEntity_ component = do
 
 {-# Inline mkPosition #-}
 mkPosition :: Double -> Double -> APhysics.Position
-mkPosition x y = APhysics.Position (SDL.V2 x y)
+mkPosition x y = APhysics.Position (Linear.V2 x y)
 
 {-# Inline mkVelocity #-}
 mkVelocity :: Double -> Double -> APhysics.Velocity
-mkVelocity x y = APhysics.Velocity (SDL.V2 x y)
+mkVelocity x y = APhysics.Velocity (Linear.V2 x y)
 
 unitPosition :: APhysics.Position
 unitPosition = mkPosition 0 0
@@ -59,11 +58,11 @@ unitVelocity = mkVelocity 0 0
 {-# Complete XY #-}
 -- | Wrapper around Position, used to clean up pattern matching.
 pattern XY :: Double -> Double -> APhysics.Position
-pattern XY x y <- APhysics.Position (SDL.V2 x y)
+pattern XY x y <- APhysics.Position (Linear.V2 x y)
 
 {-# Complete VEL #-}
 pattern VEL :: Double -> Double -> APhysics.Velocity
-pattern VEL x y <- APhysics.Velocity (SDL.V2 x y)
+pattern VEL x y <- APhysics.Velocity (Linear.V2 x y)
 
 {-# Complete RXY #-}
 -- | Same as XY. but with Doubles coerced into CInts.
@@ -71,7 +70,7 @@ pattern VEL x y <- APhysics.Velocity (SDL.V2 x y)
 -- , since it requires CInts in rendering rectangles.
 pattern RXY :: CInt -> CInt -> APhysics.Position
 pattern RXY x y <-
-  APhysics.Position (SDL.V2 (round -> x) (round -> y))
+  APhysics.Position (Linear.V2 (round -> x) (round -> y))
 
 {-# Inline velocityVector #-}
 -- | Isomorphism between Velocity and (V2 Double).
