@@ -14,6 +14,7 @@ module Ruins.Components (
      , Renderer (..)
      , QuitGame (..)
      , Resources (..)
+     , Animation (..)
      , ResourceMap
      , SpriteSheet (..)
      -- | Hide constructor.
@@ -41,11 +42,15 @@ import qualified Apecs.TH as Apecs
 import qualified Apecs.Physics as APhysics
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Aeson ((.:))
+import qualified Data.Aeson as Aeson
 import Data.Semigroup (Sum (..), Any (..))
+import Data.Vector (Vector)
 import Data.Hashable (Hashable (..))
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import System.FilePath.Posix (dropExtension)
+import Ruins.SDL (Rect)
 import Ruins.Apecs (makeGlobalComponent)
 import Control.Lens (makeLenses)
 import Control.Monad.Reader (asks)
@@ -82,11 +87,24 @@ newtype Name = MkName { getName :: Text }
 mkName :: FilePath -> Name
 mkName = MkName . Text.pack . dropExtension
 
-data Animation
+data Animation = MkAnimation {
+     _name :: Text
+   , _delay :: Double
+   , _clips :: Vector Rect
+   , _currentClipIndex :: Int
+}
+
+instance Aeson.FromJSON Animation where
+  parseJSON = Aeson.withObject "animation" \ object -> do
+    _name <- object .: "name"
+    _delay <- object .: "delay"
+    _clips <- object .: "clips"
+    let _currentClipIndex = 0
+    pure MkAnimation {..}
 
 data SpriteSheet = MkSpriteSheet {
      _spriteSheet :: SDL.Texture
-   , _animations :: HashMap Name Animation
+   , _animations :: Vector Animation
 }
 
 type ResourceMap resource = HashMap Name resource

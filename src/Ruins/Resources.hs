@@ -12,6 +12,7 @@ import qualified SDL.Mixer as Mixer
 import qualified Apecs
 import qualified Data.Text as Text
 import Data.Foldable (for_)
+import qualified Data.Vector as Vector
 import qualified Data.HashMap.Strict as HMap
 import System.Directory (listDirectory)
 import System.FilePath.Posix ((</>))
@@ -91,7 +92,7 @@ loadResources = do
   where contentsOf = liftIO . listDirectory
         insertSprite spriteName = do
           texture <- manageResource spriteName
-          let sprite = MkSpriteSheet texture HMap.empty
+          let sprite = MkSpriteSheet texture Vector.empty
           Apecs.modify Apecs.global
             (over sprites (HMap.insert (mkName spriteName) sprite))
 

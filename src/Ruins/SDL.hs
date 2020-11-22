@@ -1,5 +1,7 @@
+{-# Options -fno-warn-orphans #-}
 {-# Language ViewPatterns #-}
 {-# Language TemplateHaskell #-}
+{-# Language StandaloneDeriving #-}
 
 module Ruins.SDL (
        initSDL
@@ -13,9 +15,11 @@ import qualified SDL
 import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
 import qualified Linear
+import GHC.Generics (Generic)
+import qualified Data.Aeson as Aeson
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Foreign.C.Types (CInt)
+import Foreign.C.Types (CInt (..))
 import Control.Exception (bracket)
 import Control.Lens (over, ix, (&~), (%=))
 import Data.Text.Lens (packed)
@@ -25,7 +29,16 @@ import qualified Language.Haskell.TH.Syntax as THaskell
 
 type Rect = SDL.Rectangle CInt
 
-mkRectangle :: (CInt, CInt) -> (CInt, CInt) -> Rect
+deriving stock instance Generic CInt
+deriving anyclass instance Aeson.FromJSON CInt
+
+instance (Num value, Aeson.FromJSON value) => Aeson.FromJSON (SDL.Rectangle value) where
+  parseJSON = Aeson.withArray "SDL rectangle" \ array -> do
+    [x, y, width, height] <- Aeson.parseJSON @[value] (Aeson.Array array)
+    pure (mkRectangle (x, y) (width, height))
+
+{-# Specialize mkRectangle :: (CInt, CInt) -> (CInt, CInt) -> Rect #-}
+mkRectangle :: Num value => (value, value) -> (value, value) -> SDL.Rectangle value
 mkRectangle (x, y) (width, height) =
   SDL.Rectangle (SDL.P (Linear.V2 x y)) (Linear.V2 width height)
 

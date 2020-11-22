@@ -6,6 +6,7 @@ let unstableTarball  = fetchTarball https://github.com/NixOS/nixpkgs-channels/ar
     inherit (unstable) haskellPackages;
 
     haskellDependencies = p: with p; [ lens
+                                       aeson
                                        apecs
                                        apecs-physics
                                        stm

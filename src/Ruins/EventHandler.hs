@@ -64,7 +64,7 @@ handleKeyboardState = do
 
        | keyIs SDL.ScancodeRight -> do
            Apecs.set friskEntity MoveRight
-           increaseVelocityOf friskEntity Linear._y
+           increaseVelocityOf friskEntity Linear._x
 
        | otherwise -> dropVelocityOf friskEntity
 

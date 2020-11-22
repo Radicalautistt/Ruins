@@ -33,6 +33,7 @@ executable ruins
                      , async
                      , managed
                      , text
+                     , bytestring
                      , filepath
                      , directory
                      , apecs
@@ -42,7 +43,9 @@ executable ruins
                      , sdl2-ttf
                      , sdl2-mixer
                      , template-haskell
+                     , aeson
                      , hashable
+                     , vector
                      , unordered-containers
 
   default-extensions:  TypeApplications
@@ -60,6 +63,7 @@ executable ruins
                        DerivingVia
                        DerivingStrategies
                        DeriveGeneric
+                       DeriveAnyClass
                        DeriveFoldable
                        DeriveFunctor
                        DeriveTraversable
