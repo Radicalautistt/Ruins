@@ -20,6 +20,7 @@ executable ruins
   other-modules:       Paths_ruins
                        Ruins.SDL
                        Ruins.Apecs
+                       Ruins.Draw
                        Ruins.Step
                        Ruins.Resources
                        Ruins.Components
