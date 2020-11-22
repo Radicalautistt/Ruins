@@ -4,7 +4,7 @@
 {-# Language TemplateHaskell #-}
 
 module Ruins.EventHandler (
-       escapePressed
+       handleEvents
      , handleKeyboardState
      ) where
 
@@ -14,8 +14,9 @@ import qualified Apecs
 import qualified Linear
 import Ruins.Apecs (unitVelocity, velocityVector, pattern VEL)
 import Ruins.SDL (makeKeyPressed)
-import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..))
+import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), QuitGame (..))
 import Control.Lens (Lens', (&), (+~), (-~))
+import Control.Monad (when)
 import qualified Language.Haskell.TH as THaskell
 
 concat <$> traverse makeKeyPressed [
@@ -66,3 +67,11 @@ handleKeyboardState = do
            increaseVelocityOf friskEntity Linear._y
 
        | otherwise -> dropVelocityOf friskEntity
+
+handleEvents :: RSystem ()
+handleEvents = do
+  eventPayloads <- fmap SDL.eventPayload <$> SDL.pollEvents
+  let quitEvent = SDL.QuitEvent `elem` eventPayloads
+               || escapePressed `any` eventPayloads
+  when quitEvent do
+    Apecs.set Apecs.global (MkQuitGame True)

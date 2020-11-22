@@ -52,6 +52,7 @@ import Control.Monad.Reader (asks)
 import Control.Monad.Managed (Managed)
 
 newtype Time = MkTime Double
+  deriving newtype Num
   deriving (Semigroup, Monoid) via Sum Double
 
 data Frisk = Frisk

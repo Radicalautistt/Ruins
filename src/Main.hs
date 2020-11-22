@@ -7,17 +7,17 @@ import qualified Apecs
 import Ruins.SDL (initSDL, quitSDL)
 import Control.Monad (unless)
 import Control.Monad.Managed (with, runManaged)
-import Ruins.Components (RSystem, Window (..), Renderer (..), SpriteSheet (..), pattern Renderer, initRuins, sprites, mkName)
 import Ruins.Resources (loadResources, getResource)
-import Ruins.EventHandler (escapePressed)
+import Ruins.Step (step)
+import Ruins.Components (RSystem, Time (..), Window (..), Renderer (..), SpriteSheet (..),
+                         QuitGame (..), pattern Renderer, initRuins, sprites, mkName)
 
 gameLoop :: RSystem ()
 gameLoop = do
   Renderer renderer <- Apecs.get Apecs.global
-  eventPayloads <- fmap SDL.eventPayload <$> SDL.pollEvents
-  let quitGame = SDL.QuitEvent `elem` eventPayloads
-              || escapePressed `any` eventPayloads
+  MkQuitGame quitGame <- Apecs.get Apecs.global
   MkSpriteSheet {..} <- getResource sprites (mkName "frisk")
+  step (MkTime (1 / 60))
   SDL.clear renderer
   SDL.rendererDrawColor renderer SDL.$= SDL.V4 255 0 0 255
   SDL.copy renderer _spriteSheet Nothing Nothing
