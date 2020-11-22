@@ -8,9 +8,11 @@ module Ruins.Components (
        RSystem
      , Time (..)
      , Frisk (..)
+     , Speed (..)
      , Action (..)
      , Window (..)
      , Renderer (..)
+     , QuitGame (..)
      , Resources (..)
      , ResourceMap
      , SpriteSheet (..)
@@ -39,7 +41,7 @@ import qualified Apecs.TH as Apecs
 import qualified Apecs.Physics as APhysics
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Data.Semigroup (Sum (..))
+import Data.Semigroup (Sum (..), Any (..))
 import Data.Hashable (Hashable (..))
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
@@ -56,6 +58,9 @@ data Frisk = Frisk
 
 instance Apecs.Component Frisk where
   type Storage Frisk = Apecs.Unique Frisk
+
+newtype Speed = MkSpeed Double
+  deriving newtype Num
 
 data Action = MoveUp
    | MoveDown
@@ -128,24 +133,32 @@ instance Monoid Renderer where mempty = MkRenderer Nothing
 pattern Renderer :: SDL.Renderer -> Renderer
 pattern Renderer renderer <- MkRenderer (Just renderer)
 
+-- | Global flag telling the game whether it should end or not.
+newtype QuitGame = MkQuitGame Bool
+  deriving (Semigroup, Monoid) via Any
+
 traverse makeGlobalComponent [
   ''Time
   , ''Window
   , ''Renderer
+  , ''QuitGame
   , ''Resources
   ]
 
 Apecs.makeMapComponents [
   ''Action
+  , ''Speed
   , ''HealthPoints
   ]
 
 Apecs.makeWorld "Ruins" [
   ''Time
   , ''Frisk
+  , ''Speed
   , ''Action
   , ''Window
   , ''Renderer
+  , ''QuitGame
   , ''Resources
   , ''HealthPoints
   , ''APhysics.Physics

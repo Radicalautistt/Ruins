@@ -16,7 +16,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Foreign.C.Types (CInt)
 import Control.Exception (bracket)
-import Control.Lens ((&~), (%=))
+import Control.Lens (over, ix, (&~), (%=))
 import Data.Text.Lens (packed)
 import Control.Monad.Managed (Managed, managed)
 import qualified Language.Haskell.TH as THaskell
@@ -77,4 +77,4 @@ makeKeyPressed keyName = do
    
   where name = THaskell.showName keyName &~ do
                  packed %= Text.replace "Keycode" "PRESSED_"
-                 packed %= Text.toUpper
+                 packed %= Text.intercalate "_" . over (ix 1) Text.toUpper . Text.splitOn "_"

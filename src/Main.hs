@@ -4,17 +4,19 @@ module Main where
 
 import qualified SDL
 import qualified Apecs
-import Ruins.SDL
+import Ruins.SDL (initSDL, quitSDL)
 import Control.Monad (unless)
 import Control.Monad.Managed (with, runManaged)
 import Ruins.Components (RSystem, Window (..), Renderer (..), SpriteSheet (..), pattern Renderer, initRuins, sprites, mkName)
 import Ruins.Resources (loadResources, getResource)
+import Ruins.EventHandler (escapePressed)
 
 gameLoop :: RSystem ()
 gameLoop = do
   Renderer renderer <- Apecs.get Apecs.global
   eventPayloads <- fmap SDL.eventPayload <$> SDL.pollEvents
   let quitGame = SDL.QuitEvent `elem` eventPayloads
+              || escapePressed `any` eventPayloads
   MkSpriteSheet {..} <- getResource sprites (mkName "frisk")
   SDL.clear renderer
   SDL.rendererDrawColor renderer SDL.$= SDL.V4 255 0 0 255
@@ -22,11 +24,10 @@ gameLoop = do
   SDL.present renderer
   unless quitGame do gameLoop
 
-
 main :: IO ()
 main = do
   world <- initRuins
-  with initSDL do (runManaged . Apecs.runWith world . gameRoutine)
+  with initSDL do runManaged . Apecs.runWith world . gameRoutine
   quitSDL
   where gameRoutine (window, renderer) = do
           Apecs.set Apecs.global (MkWindow (Just window))

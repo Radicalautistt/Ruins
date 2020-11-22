@@ -11,6 +11,7 @@ let unstableTarball  = fetchTarball https://github.com/NixOS/nixpkgs-channels/ar
                                        stm
                                        async
                                        unordered-containers
+                                       linear
                                        sdl2
                                        sdl2-mixer
                                        sdl2-ttf

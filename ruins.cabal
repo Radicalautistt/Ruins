@@ -1,16 +1,18 @@
-cabal-version:       2.4
+cabal-version:         2.4
 
-name:                ruins
-version:             0.1.0.0
+name:                  ruins
+version:               0.1.0.0
 -- synopsis:
 -- description:
--- bug-reports:
-license:             NONE
-license-file:        LICENSE
-author:              Radical autist
-maintainer:          56npyfygybys@gmail.com
+homepage:              https://github.com/Radicalautistt/Ruins
+bug-reports:           https://github.com/Radicalautistt/Ruins/issues
+license:               NONE
+license-file:          LICENSE
+author:                Radical autist
+maintainer:            56npyfygybys@gmail.com
+tested-with:           GHC == 8.4.4
 -- copyright:
-category:            Game
+category:              Game
 
 executable ruins
   main-is:             Main.hs
@@ -20,6 +22,7 @@ executable ruins
                        Ruins.Apecs
                        Ruins.Resources
                        Ruins.Components
+                       Ruins.EventHandler
 
   build-depends:       base ^>=4.13.0.0
                      , lens
@@ -32,13 +35,13 @@ executable ruins
                      , directory
                      , apecs
                      , apecs-physics
+                     , linear
                      , sdl2
                      , sdl2-ttf
                      , sdl2-mixer
                      , template-haskell
                      , hashable
                      , unordered-containers
-
 
   default-extensions:  TypeApplications
                        ApplicativeDo
@@ -61,6 +64,8 @@ executable ruins
                        OverloadedLabels
                        GeneralizedNewtypeDeriving
                        ScopedTypeVariables
+
+  ghc-options:         -Wall -O2 -threaded -with-rtsopts=-N
 
   hs-source-dirs:      src
   default-language:    Haskell2010

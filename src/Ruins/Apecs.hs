@@ -8,7 +8,9 @@ import qualified SDL
 import qualified Apecs
 import qualified Apecs.Util as Apecs
 import qualified Apecs.Physics as APhysics
+import qualified Linear
 import Foreign.C.Types (CInt)
+import Control.Lens (Iso', iso)
 import Control.Monad.IO.Class (MonadIO)
 import qualified Language.Haskell.TH as THaskell
 import qualified Language.Haskell.TH.Syntax as THaskell
@@ -29,6 +31,8 @@ makeGlobalComponent componentName = do
 
 {-# Inline newEntity_ #-}
 -- | Make new entity without yelding the result.
+-- | TODO remove this as soon as apecs gets new release
+-- , since the function is already merged into the master branch.
 newEntity_ :: MonadIO m =>
               Apecs.Set world m component =>
               Apecs.Get world m Apecs.EntityCounter =>
@@ -68,3 +72,11 @@ pattern VEL x y <- APhysics.Velocity (SDL.V2 x y)
 pattern RXY :: CInt -> CInt -> APhysics.Position
 pattern RXY x y <-
   APhysics.Position (SDL.V2 (round -> x) (round -> y))
+
+{-# Inline velocityVector #-}
+-- | Isomorphism between Velocity and (V2 Double).
+-- | I need it so I could easily get/set values inside Velocity.
+-- | There is probably a way to do the same thing with Control.Lens.coerced
+-- , but I haven't figured out how yet (at least the setting part).
+velocityVector :: Iso' APhysics.Velocity (Linear.V2 Double)
+velocityVector = iso (\ (APhysics.Velocity vector) -> vector) APhysics.Velocity
