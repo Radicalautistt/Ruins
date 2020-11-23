@@ -1,4 +1,5 @@
 {-# Options -fno-warn-orphans #-}
+{-# Language RankNTypes #-}
 {-# Language ViewPatterns #-}
 {-# Language TemplateHaskell #-}
 {-# Language StandaloneDeriving #-}
@@ -8,6 +9,8 @@ module Ruins.SDL (
      , quitSDL
      , Rect
      , mkRectangle
+     , rectExtent
+     , rectPosition
      , makeKeyPressed
      ) where
 
@@ -15,13 +18,14 @@ import qualified SDL
 import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
 import qualified Linear
+import qualified Linear.Affine as Linear
 import GHC.Generics (Generic)
 import qualified Data.Aeson as Aeson
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Foreign.C.Types (CInt (..))
 import Control.Exception (bracket)
-import Control.Lens (over, ix, (&~), (%=))
+import Control.Lens (Lens', lens, set, over, ix, (&~), (%=), (^.))
 import Data.Text.Lens (packed)
 import Control.Monad.Managed (Managed, managed)
 import qualified Language.Haskell.TH as THaskell
@@ -40,7 +44,22 @@ instance (Num value, Aeson.FromJSON value) => Aeson.FromJSON (SDL.Rectangle valu
 {-# Specialize mkRectangle :: (CInt, CInt) -> (CInt, CInt) -> Rect #-}
 mkRectangle :: Num value => (value, value) -> (value, value) -> SDL.Rectangle value
 mkRectangle (x, y) (width, height) =
-  SDL.Rectangle (SDL.P (Linear.V2 x y)) (Linear.V2 width height)
+  SDL.Rectangle (Linear.P (Linear.V2 x y)) (Linear.V2 width height)
+
+-- | Lenses for SDL.Rectangles. Example usage:
+-- | ghci> mkRectangle (10, 20) (30, 40) & rectPosition _x +~ 100
+-- | ghci> Rectangle (P (V2 110 20)) (V2 30 40)
+rectPosition :: Lens' (Linear.V2 CInt) CInt -> Lens' Rect CInt
+rectPosition axisLens = lens getter setter
+  where getter (SDL.Rectangle (Linear.P position) _) = position ^. axisLens
+        setter (SDL.Rectangle (Linear.P position) extent) newAxisValue =
+          SDL.Rectangle (Linear.P (set axisLens newAxisValue position)) extent
+
+rectExtent :: Lens' (Linear.V2 CInt) CInt -> Lens' Rect CInt
+rectExtent axisLens = lens getter setter
+  where getter (SDL.Rectangle _ extent) = extent ^. axisLens
+        setter (SDL.Rectangle position extent) newExtentValue =
+          SDL.Rectangle position (set axisLens newExtentValue extent)
 
 withWindow :: Text -> SDL.WindowConfig -> Managed SDL.Window
 withWindow windowName windowConfig = managed do
