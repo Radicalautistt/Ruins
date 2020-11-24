@@ -2,6 +2,7 @@
 {-# Language RankNTypes #-}
 {-# Language ViewPatterns #-}
 {-# Language TemplateHaskell #-}
+{-# Language FlexibleContexts #-}
 
 module Ruins.EventHandler (
        handleEvents
@@ -14,10 +15,10 @@ import qualified Apecs
 import qualified Linear
 import Ruins.Apecs (unitVelocity, velocityVector, pattern VEL)
 import Ruins.SDL (makeKeyPressed)
-import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), QuitGame (..))
-import Control.Lens (Lens', (&), (+~), (-~))
+import Control.Lens (Lens', set, each, (&), (+~), (-~))
 import Control.Monad (when)
 import qualified Language.Haskell.TH as THaskell
+import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), QuitGame (..), sprites, animated)
 
 concat <$> traverse makeKeyPressed [
   THaskell.mkName "KeycodeEscape"
@@ -53,20 +54,31 @@ handleKeyboardState = do
     if | keyIs SDL.ScancodeUp -> do
            Apecs.set friskEntity MoveUp
            decreaseVelocityOf friskEntity Linear._y
+           animate
 
        | keyIs SDL.ScancodeDown -> do
            Apecs.set friskEntity MoveDown
            increaseVelocityOf friskEntity Linear._y
+           animate
 
        | keyIs SDL.ScancodeLeft -> do
            Apecs.set friskEntity MoveLeft
            decreaseVelocityOf friskEntity Linear._x
+           animate
 
        | keyIs SDL.ScancodeRight -> do
            Apecs.set friskEntity MoveRight
            increaseVelocityOf friskEntity Linear._x
+           animate
 
-       | otherwise -> dropVelocityOf friskEntity
+       | otherwise -> do
+           dropVelocityOf friskEntity
+           stopAnimation
+
+  where setAnimationsStatus isActive =
+          Apecs.modify Apecs.global (set (sprites . each . animated) isActive)
+        animate = setAnimationsStatus True
+        stopAnimation = setAnimationsStatus False
 
 handleEvents :: RSystem ()
 handleEvents = do

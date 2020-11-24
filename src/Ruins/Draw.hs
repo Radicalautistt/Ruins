@@ -36,8 +36,9 @@ spriteSheetRow spriteSheetName rowIndex = do
       currentClip = _animations Vector.! rowIndex ^. currentClipIndex
       defaultRectangle = animationClips Vector.! 0
       maybeRectangle =  animationClips Vector.!? currentClip
-
-  maybe (pure defaultRectangle) pure maybeRectangle
+  if _animated
+     then maybe (pure defaultRectangle) pure maybeRectangle
+          else pure defaultRectangle
 
 drawPart :: Name -> Rect -> Rect -> RSystem ()
 drawPart spriteSheetName sourceRect targetRect = do

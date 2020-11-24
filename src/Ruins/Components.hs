@@ -26,7 +26,7 @@ module Ruins.Components (
      , name
      , delay
      , clips
-     , active
+     , animated
      , currentClipIndex
      , spriteSheet
      , animations
@@ -96,7 +96,6 @@ data Animation = MkAnimation {
      _name :: Text
    , _delay :: Double
    , _clips :: Vector Rect
-   , _active :: Bool
    , _currentClipIndex :: Int
 }
 
@@ -105,13 +104,13 @@ instance Aeson.FromJSON Animation where
     _name <- object .: "name"
     _delay <- object .: "delay"
     _clips <- object .: "clips"      
-    let _active = True
-        _currentClipIndex = 0
+    let _currentClipIndex = 0
 
     pure MkAnimation {..}
 
 data SpriteSheet = MkSpriteSheet {
-     _spriteSheet :: SDL.Texture
+     _animated :: Bool
+   , _spriteSheet :: SDL.Texture
    , _animations :: Vector Animation
 }
 

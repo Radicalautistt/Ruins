@@ -5,10 +5,10 @@ import qualified Apecs.Physics as APhysics
 import qualified Data.Vector as Vector
 import GHC.Int (neInt)
 import Data.Bool (bool)
-import Control.Lens (over, each, (&), (.~), (+~))
+import Control.Lens (over, each, (&), (.~), (+~), (%~))
 import Ruins.EventHandler (handleEvents, handleKeyboardState)
 import Ruins.Components (RSystem, Time (..), Animation (..),
-                         currentClipIndex, sprites, animations)
+                         SpriteSheet (..), currentClipIndex, sprites, animations)
 
 incrementTime :: Time -> RSystem ()
 incrementTime deltaTime = Apecs.modify Apecs.global \ currentTime ->
@@ -17,16 +17,17 @@ incrementTime deltaTime = Apecs.modify Apecs.global \ currentTime ->
 stepAnimations :: Time -> RSystem ()
 stepAnimations (MkTime deltaTime) = do
   MkTime currentTime <- Apecs.get Apecs.global
-  let stepAnimation animation@MkAnimation {..} =
-        let stepNeeded =
-              floor (currentTime / _delay) `neInt` floor ((currentTime + deltaTime) / _delay)
-        in case _clips Vector.!? _currentClipIndex of
-          Nothing -> animation & currentClipIndex .~ 0
-          Just _rect ->
-            bool animation (animation & currentClipIndex +~ 1) (_active && stepNeeded)
+  let stepAnimation spriteSheet@MkSpriteSheet {..} =
+        spriteSheet & animations . each %~ \ animation@MkAnimation {..} ->
+          let stepNeeded =
+                floor (currentTime / _delay) `neInt` floor ((currentTime + deltaTime) / _delay)
+          in case _clips Vector.!? _currentClipIndex of
+            Nothing -> animation & currentClipIndex .~ 0
+            Just _rect ->
+              bool animation (animation & currentClipIndex +~ 1) (_animated && stepNeeded)
 
   Apecs.modify Apecs.global
-    (over (sprites . each . animations . each) stepAnimation)
+    (over (sprites . each) stepAnimation)
 
 step :: Time -> RSystem ()
 step deltaTime@(MkTime dT) = do

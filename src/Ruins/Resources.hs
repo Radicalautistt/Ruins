@@ -114,7 +114,7 @@ loadResources = do
   where contentsOf = liftIO . listDirectory
         insertSprite spriteName = do
           texture <- manageResource spriteName
-          let sprite = MkSpriteSheet texture Vector.empty
+          let sprite = MkSpriteSheet False texture Vector.empty
           Apecs.modify Apecs.global
             (over sprites (HMap.insert (mkName spriteName) sprite))
 
