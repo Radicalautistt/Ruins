@@ -5,12 +5,15 @@ module Ruins.Draw (drawGame) where
 import qualified SDL
 import qualified Apecs
 import qualified Linear
+import qualified Data.Vector as Vector
 import Data.Word (Word8)
 import Foreign.C.Types (CInt)
-import Ruins.SDL (mkRectangle)
+import Ruins.SDL (mkRectangle, Rect)
 import Ruins.Apecs (pattern RXY)
-import Ruins.Components (RSystem, Frisk (..), Action (..), SpriteSheet (..), sprites, mkName, pattern Renderer)
+import Control.Lens (view, ix, (^.))
 import Ruins.Resources (getResource)
+import Ruins.Components (RSystem, Name (..), Frisk (..), Action (..), SpriteSheet (..),
+                         sprites, spriteSheet, clips, currentClipIndex, mkName, pattern Renderer)
 
 type Colour = Linear.V4 Word8
 
@@ -26,16 +29,38 @@ white = Linear.V4 255 255 255 255
 pink :: Colour
 pink = Linear.V4 255 204 229 0
 
+spriteSheetRow :: Name -> Int -> RSystem Rect
+spriteSheetRow spriteSheetName rowIndex = do
+  MkSpriteSheet {..} <- getResource sprites spriteSheetName
+  let animationClips = _animations ^. ix rowIndex . clips
+      currentClip = _animations Vector.! rowIndex ^. currentClipIndex
+      defaultRectangle = animationClips Vector.! 0
+      maybeRectangle =  animationClips Vector.!? currentClip
+
+  maybe (pure defaultRectangle) pure maybeRectangle
+
+drawPart :: Name -> Rect -> Rect -> RSystem ()
+drawPart spriteSheetName sourceRect targetRect = do
+  Renderer renderer <- Apecs.get Apecs.global
+  sourceSheet <- view spriteSheet <$> getResource sprites spriteSheetName
+  SDL.copy renderer sourceSheet (Just sourceRect) (Just targetRect)
+
 drawFrisk :: RSystem ()
 drawFrisk = do
-  Renderer renderer <- Apecs.get Apecs.global
-  MkSpriteSheet {..} <- getResource sprites (mkName "frisk")
-  Apecs.cmapM_ \ (Frisk, RXY x y, action :: Action) -> do
-    case action of
-      MoveUp -> SDL.copy renderer _spriteSheet
-                  (Just do mkRectangle (0, 0) (19, 29)) (Just (mkRectangle (x, y) friskExtent))
+  let friskClip = spriteSheetRow (mkName "frisk")
+  moveUp <- friskClip 0
+  moveDown <- friskClip 1
+  moveLeft <- friskClip 2
+  moveRight <- friskClip 3
+  Apecs.cmapM_ \ (Frisk, RXY x y, action) -> do
+   
+    let targetRect = mkRectangle (x, y) friskExtent
 
-      _ -> pure ()
+    case action of
+      MoveUp -> drawPart (mkName "frisk") moveUp targetRect
+      MoveDown -> drawPart (mkName "frisk") moveDown targetRect
+      MoveLeft -> drawPart (mkName "frisk") moveLeft targetRect
+      MoveRight -> drawPart (mkName "frisk") moveRight targetRect
 
 drawGame :: RSystem ()
 drawGame = do

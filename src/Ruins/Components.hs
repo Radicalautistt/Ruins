@@ -23,6 +23,11 @@ module Ruins.Components (
      , mkName
      , getName
      , initRuins
+     , name
+     , delay
+     , clips
+     , active
+     , currentClipIndex
      , spriteSheet
      , animations
      , sprites
@@ -91,6 +96,7 @@ data Animation = MkAnimation {
      _name :: Text
    , _delay :: Double
    , _clips :: Vector Rect
+   , _active :: Bool
    , _currentClipIndex :: Int
 }
 
@@ -98,8 +104,10 @@ instance Aeson.FromJSON Animation where
   parseJSON = Aeson.withObject "animation" \ object -> do
     _name <- object .: "name"
     _delay <- object .: "delay"
-    _clips <- object .: "clips"
-    let _currentClipIndex = 0
+    _clips <- object .: "clips"      
+    let _active = True
+        _currentClipIndex = 0
+
     pure MkAnimation {..}
 
 data SpriteSheet = MkSpriteSheet {
@@ -184,7 +192,8 @@ Apecs.makeWorld "Ruins" [
   ]
 
 concat <$> traverse makeLenses [
-  ''SpriteSheet
+  ''Animation
+  , ''SpriteSheet
   , ''Resources
   ]
 
