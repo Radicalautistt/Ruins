@@ -45,6 +45,7 @@ executable ruins
                      , template-haskell
                      , aeson
                      , hashable
+                     , array
                      , vector
                      , unordered-containers
 

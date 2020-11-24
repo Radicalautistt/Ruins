@@ -7,10 +7,12 @@
 module Ruins.Components (
        RSystem
      , Time (..)
+     , Tile (..)
      , Frisk (..)
      , Speed (..)
      , Action (..)
      , Window (..)
+     , TileMap (..)
      , Renderer (..)
      , QuitGame (..)
      , Resources (..)
@@ -24,6 +26,10 @@ module Ruins.Components (
      , getName
      , initRuins
      , name
+     , tileSolid
+     , tileRectangle
+     , tileMap
+     , sourceName
      , delay
      , clips
      , animated
@@ -50,10 +56,14 @@ import qualified Data.Text as Text
 import Data.Aeson ((.:))
 import qualified Data.Aeson as Aeson
 import Data.Semigroup (Sum (..), Any (..))
+import Data.Array (Array)
+import qualified Data.Array as Array
 import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 import Data.Hashable (Hashable (..))
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
+import Data.Traversable (for)
 import System.FilePath.Posix (dropExtension)
 import Ruins.SDL (Rect)
 import Ruins.Apecs (makeGlobalComponent)
@@ -91,6 +101,42 @@ newtype Name = MkName { getName :: Text }
 -- , making sure that the extension is dropped.
 mkName :: FilePath -> Name
 mkName = MkName . Text.pack . dropExtension
+
+instance Aeson.FromJSON Name where
+  parseJSON = Aeson.withText "name" \ text ->
+    -- | NOTE: this is dumb
+    pure (mkName (Text.unpack text))
+
+data Tile = MkTile {
+     _tileSolid :: Bool
+  -- | Position and extent of a tile
+  -- , on a parent tile map.
+   , _tileRectangle :: Rect
+}
+
+instance Aeson.FromJSON Tile where
+  parseJSON = Aeson.withObject "tile" \ object -> do
+    _tileSolid <- object .: "tile-solid"
+    _tileRectangle <- object .: "tile-rectangle"
+    pure MkTile {..}
+
+data TileMap = MkTileMap {
+  -- | Two-dimensional array of tiles.
+     _tileMap :: Array Int (Array Int Tile)
+  -- | Name of a source sprite sheet.
+   , _sourceName :: Name
+}
+
+instance Aeson.FromJSON element => Aeson.FromJSON (Array Int element) where
+  parseJSON = Aeson.withArray "array" \ array -> do
+    elements <- for array Aeson.parseJSON
+    pure $ Array.listArray (0, Vector.length array - 1) (Vector.toList elements)
+
+instance Aeson.FromJSON TileMap where
+  parseJSON = Aeson.withObject "tile map" \ object -> do
+    _tileMap <- object .: "tile-map"
+    _sourceName <- object .: "source-name"
+    pure MkTileMap {..}
 
 data Animation = MkAnimation {
      _name :: Text
@@ -191,7 +237,9 @@ Apecs.makeWorld "Ruins" [
   ]
 
 concat <$> traverse makeLenses [
-  ''Animation
+  ''Tile
+  , ''TileMap
+  , ''Animation
   , ''SpriteSheet
   , ''Resources
   ]
