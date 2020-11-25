@@ -30,6 +30,7 @@ in  pkgs.stdenv.mkDerivation {
                     pkgs.cabal2nix
                     haskellPackages.ghcid
                     haskellPackages.hlint
+                    haskellPackages.hp2pretty
                     haskellPackages.cabal-install ];
 
     LD_LIBRARY_PATH="${pkgs.openssl.out}/lib;${pkgs.zlib}/lib";

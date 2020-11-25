@@ -1,4 +1,5 @@
 {-# Options -fno-warn-unused-top-binds #-}
+{-# Language FlexibleContexts #-}
 
 module Ruins.Draw (drawGame) where
 
@@ -6,14 +7,18 @@ import qualified SDL
 import qualified Apecs
 import qualified Linear
 import qualified Data.Vector as Vector
+import qualified Data.Text as Text
 import Data.Word (Word8)
+import qualified Data.HashMap.Strict as HMap
 import Foreign.C.Types (CInt)
 import Ruins.SDL (mkRectangle, Rect)
 import Ruins.Apecs (pattern RXY)
-import Control.Lens (view, ix, (^.))
+import Control.Lens (ifor_, view, ix, (^.))
+import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
-import Ruins.Components (RSystem, Name (..), Frisk (..), Action (..), SpriteSheet (..),
-                         sprites, spriteSheet, clips, currentClipIndex, mkName, pattern Renderer)
+import Ruins.Components (RSystem, Name (..), Frisk (..), Action (..), SpriteSheet (..), Rooms (..),
+                         Room (..), sprites, spriteSheet, clips, currentClipIndex, mkName, pattern Renderer,
+                         TileMap (..), tileRectangle)
 
 type Colour = Linear.V4 Word8
 
@@ -46,6 +51,21 @@ drawPart spriteSheetName sourceRect targetRect = do
   sourceSheet <- view spriteSheet <$> getResource sprites spriteSheetName
   SDL.copy renderer sourceSheet (Just sourceRect) (Just targetRect)
 
+drawRoom :: Name -> RSystem ()
+drawRoom roomName = do
+  MkRooms rooms <- Apecs.get Apecs.global
+  let maybeRoom = HMap.lookup roomName rooms
+      errorMessage = Text.unpack ("drawRoom: no such room " <> getName roomName)
+  maybe (fail errorMessage) draw maybeRoom
+  where draw MkRoom {..} = do
+          let Right MkTileMap {..} = _background
+          Renderer renderer <- Apecs.get Apecs.global
+          sourceSheet <- view spriteSheet <$> getResource sprites _sourceName
+          ifor_ _tileMap \ rowIndex row ->
+            ifor_ row \ columnIndex column ->
+              SDL.copy renderer sourceSheet (Just (column ^. tileRectangle))
+                (Just (mkRectangle (unsafeCoerce (columnIndex * 60, rowIndex * 40)) (70,70)))
+
 drawFrisk :: RSystem ()
 drawFrisk = do
   let friskClip = spriteSheetRow (mkName "frisk")
@@ -68,5 +88,6 @@ drawGame = do
   Renderer renderer <- Apecs.get Apecs.global
   SDL.clear renderer
   SDL.rendererDrawColor renderer SDL.$= pink
+  drawRoom (mkName "debug-room")
   drawFrisk
   SDL.present renderer

@@ -6,8 +6,10 @@
 
 module Ruins.Components (
        RSystem
+     , Room (..)
      , Time (..)
      , Tile (..)
+     , Rooms (..)
      , Frisk (..)
      , Speed (..)
      , Action (..)
@@ -40,6 +42,8 @@ module Ruins.Components (
      , fonts
      , sounds
      , music
+     , background
+     , rooms
      , pattern Window
      , pattern Renderer
      ) where
@@ -138,6 +142,13 @@ instance Aeson.FromJSON TileMap where
     _sourceName <- object .: "source-name"
     pure MkTileMap {..}
 
+data Room = MkRoom {
+  _background :: Either SDL.Texture TileMap
+}
+
+newtype Rooms = MkRooms { _rooms :: HashMap Name Room }
+  deriving newtype (Semigroup, Monoid)
+
 data Animation = MkAnimation {
      _name :: Text
    , _delay :: Double
@@ -211,6 +222,7 @@ newtype QuitGame = MkQuitGame Bool
 
 traverse makeGlobalComponent [
   ''Time
+  , ''Rooms
   , ''Window
   , ''Renderer
   , ''QuitGame
@@ -219,12 +231,14 @@ traverse makeGlobalComponent [
 
 Apecs.makeMapComponents [
   ''Action
+  , ''Room
   , ''Speed
   , ''HealthPoints
   ]
 
 Apecs.makeWorld "Ruins" [
   ''Time
+  , ''Rooms
   , ''Frisk
   , ''Speed
   , ''Action
@@ -237,7 +251,9 @@ Apecs.makeWorld "Ruins" [
   ]
 
 concat <$> traverse makeLenses [
-  ''Tile
+  ''Room
+  , ''Tile
+  , ''Rooms
   , ''TileMap
   , ''Animation
   , ''SpriteSheet

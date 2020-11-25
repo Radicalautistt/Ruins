@@ -12,6 +12,7 @@ import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
 import qualified Apecs
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as BString
 import qualified Data.ByteString.Lazy as LBString
 import qualified Data.Text as Text
 import Data.Foldable (for_)
@@ -27,7 +28,8 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
 import Control.Monad.Trans (lift)
 import Ruins.Components (RSystem, SpriteSheet (..), Resources (..), Name, getName, Animation (..),
-                         ResourceMap, animations, sprites, fonts, sounds, music, mkName, pattern Renderer)
+                         ResourceMap, animations, sprites, fonts, sounds, music, mkName, pattern Renderer,
+                         TileMap (..), Room (..), rooms)
 
 mkAssetPath :: FilePath -> FilePath
 mkAssetPath = (</>) "assets"
@@ -95,6 +97,18 @@ loadAnimations = do
     in Apecs.modify Apecs.global
         (over sprites (HMap.update (Just . insertAnimations) name))
 
+loadRooms :: RSystem ()
+loadRooms = do
+  roomFiles <- liftIO (listDirectory (mkAssetPath "rooms"))
+  results <- liftIO $ Async.forConcurrently roomFiles \ fileName -> do
+    fileContents <- BString.readFile (mkAssetPath "rooms" </> fileName)
+    either fail (pure . (mkName fileName, ))
+      (Aeson.eitherDecodeStrict' @(TileMap) fileContents)
+
+  for_ results \ (name, tileMap) ->
+    Apecs.modify Apecs.global
+      (over rooms (HMap.insert name (MkRoom (Right tileMap))))
+
 loadResources :: RSystem ()
 loadResources = do
   -- | Doesn't work if there is an inner directory
@@ -109,6 +123,7 @@ loadResources = do
   for_ soundFiles (insertResource sounds)
   for_ musicFiles (insertResource music)
 
+  loadRooms
   loadAnimations
 
   where contentsOf = liftIO . listDirectory
