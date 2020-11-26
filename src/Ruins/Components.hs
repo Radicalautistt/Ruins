@@ -1,7 +1,6 @@
 {-# Options -fno-warn-orphans #-}
 {-# Language TemplateHaskell #-}
 {-# Language FlexibleInstances #-}
-{-# Language StandaloneDeriving #-}
 {-# Language MultiParamTypeClasses #-}
 
 module Ruins.Components (
@@ -70,10 +69,9 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Traversable (for)
 import System.FilePath.Posix (dropExtension)
 import Ruins.SDL (Rect)
-import Ruins.Apecs (makeGlobalComponent)
+import Ruins.Apecs (ManagedSystem, makeGlobalComponent)
 import Control.Lens (makeLenses)
 import Control.Monad.Reader (asks)
-import Control.Monad.Managed (Managed)
 
 newtype Time = MkTime Double
   deriving newtype Num
@@ -260,7 +258,4 @@ concat <$> traverse makeLenses [
   , ''Resources
   ]
 
-type RSystem result = Apecs.SystemT Ruins Managed result
-
--- | We need this to actually use Window/Renderer pattern.
-deriving newtype instance MonadFail m => MonadFail (Apecs.SystemT world m)
+type RSystem result = ManagedSystem Ruins result
