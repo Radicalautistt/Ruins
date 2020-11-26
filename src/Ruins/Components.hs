@@ -9,10 +9,12 @@ module Ruins.Components (
      , Time (..)
      , Tile (..)
      , Rooms (..)
+     , Lever (..)
      , Frisk (..)
      , Speed (..)
      , Action (..)
      , Window (..)
+     , Pressed (..)
      , TileMap (..)
      , Boundary (..)
      , Renderer (..)
@@ -82,6 +84,13 @@ data Frisk = Frisk
 
 instance Apecs.Component Frisk where
   type Storage Frisk = Apecs.Unique Frisk
+
+data Lever = Lever
+
+-- | The flag component, which tells the game
+-- | whether the associated entity was pressed/activated.
+-- | Used with levers and buttons.
+newtype Pressed = MkPressed Bool
 
 newtype Speed = MkSpeed Double
   deriving newtype Num
@@ -243,6 +252,8 @@ Apecs.makeMapComponents [
   ''Action
   , ''Room
   , ''Speed
+  , ''Lever
+  , ''Pressed
   , ''HealthPoints
   ]
 
@@ -250,9 +261,11 @@ Apecs.makeWorld "Ruins" [
   ''Time
   , ''Rooms
   , ''Frisk
+  , ''Lever
   , ''Speed
   , ''Action
   , ''Window
+  , ''Pressed
   , ''Renderer
   , ''Boundary
   , ''QuitGame

@@ -7,6 +7,7 @@ import qualified SDL
 import qualified Apecs
 import qualified Linear
 import qualified Data.Vector as Vector
+import Data.Bool (bool)
 import qualified Data.Text as Text
 import Data.Word (Word8)
 import qualified Data.HashMap.Strict as HMap
@@ -18,7 +19,7 @@ import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
 import Ruins.Components (RSystem, Name (..), Frisk (..), Action (..), SpriteSheet (..), Rooms (..),
                          Room (..), sprites, spriteSheet, clips, currentClipIndex, mkName, pattern Renderer,
-                         TileMap (..), tileRectangle)
+                         TileMap (..), Lever (..), Pressed (..), tileRectangle)
 
 type Colour = Linear.V4 Word8
 
@@ -45,37 +46,41 @@ spriteSheetRow spriteSheetName rowIndex = do
      then maybe (pure defaultRectangle) pure maybeRectangle
           else pure defaultRectangle
 
-drawPart :: Name -> Rect -> Rect -> RSystem ()
-drawPart spriteSheetName sourceRect targetRect = do
-  Renderer renderer <- Apecs.get Apecs.global
+drawPart :: SDL.Renderer -> Name -> Rect -> Rect -> RSystem ()
+drawPart renderer spriteSheetName sourceRect targetRect = do
   sourceSheet <- view spriteSheet <$> getResource sprites spriteSheetName
   SDL.copy renderer sourceSheet (Just sourceRect) (Just targetRect)
 
-drawLogo :: RSystem ()
-drawLogo = do
-  Renderer renderer <- Apecs.get Apecs.global
+drawLogo :: SDL.Renderer -> RSystem ()
+drawLogo renderer = do
   logoSprite <- view spriteSheet <$> getResource sprites (mkName "logo")
   SDL.copy renderer logoSprite Nothing
     (Just do mkRectangle (380, 30) (600, 120))
 
-drawRoom :: Name -> RSystem ()
-drawRoom roomName = do
+drawLevers :: SDL.Renderer -> RSystem ()
+drawLevers renderer = do
+  Apecs.cmapM_ \ (Lever, MkPressed pressed, RXY x y) -> do
+    let sourceX = bool 45 53 pressed
+    drawPart renderer (mkName "ruins-tiles") (mkRectangle (sourceX, 1038) (7, 15))
+      (mkRectangle (x, y) (20, 41))
+
+drawRoom :: SDL.Renderer -> Name -> RSystem ()
+drawRoom renderer roomName = do
   MkRooms rooms <- Apecs.get Apecs.global
   let maybeRoom = HMap.lookup roomName rooms
       errorMessage = Text.unpack ("drawRoom: no such room " <> getName roomName)
   maybe (fail errorMessage) draw maybeRoom
-  drawLogo
+  drawLogo renderer
   where draw MkRoom {..} = do
           let Right MkTileMap {..} = _background
-          Renderer renderer <- Apecs.get Apecs.global
           sourceSheet <- view spriteSheet <$> getResource sprites _sourceName
           ifor_ _tileMap \ rowIndex row ->
             ifor_ row \ columnIndex column ->
               SDL.copy renderer sourceSheet (Just (column ^. tileRectangle))
                 (Just (mkRectangle (unsafeCoerce (columnIndex * 60, rowIndex * 40)) (60,40)))
 
-drawFrisk :: RSystem ()
-drawFrisk = do
+drawFrisk :: SDL.Renderer -> RSystem ()
+drawFrisk renderer = do
   let friskClip = spriteSheetRow (mkName "frisk")
   moveUp <- friskClip 0
   moveDown <- friskClip 1
@@ -84,18 +89,20 @@ drawFrisk = do
   Apecs.cmapM_ \ (Frisk, RXY x y, action) -> do
    
     let targetRect = mkRectangle (x, y) friskExtent
+        draw rect = drawPart renderer (mkName "frisk") rect targetRect
 
     case action of
-      MoveUp -> drawPart (mkName "frisk") moveUp targetRect
-      MoveDown -> drawPart (mkName "frisk") moveDown targetRect
-      MoveLeft -> drawPart (mkName "frisk") moveLeft targetRect
-      MoveRight -> drawPart (mkName "frisk") moveRight targetRect
+      MoveUp -> draw moveUp
+      MoveDown -> draw moveDown
+      MoveLeft -> draw moveLeft
+      MoveRight -> draw moveRight
 
 drawGame :: RSystem ()
 drawGame = do
   Renderer renderer <- Apecs.get Apecs.global
   SDL.clear renderer
   SDL.rendererDrawColor renderer SDL.$= pink
-  drawRoom (mkName "debug-room")
-  drawFrisk
+  drawRoom renderer (mkName "debug-room")
+  drawLevers renderer
+  drawFrisk renderer
   SDL.present renderer

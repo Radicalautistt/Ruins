@@ -12,16 +12,20 @@ module Ruins.EventHandler (
 import qualified SDL
 import SDL.Input.Keyboard.Codes
 import qualified Apecs
+import qualified Apecs.Physics as APhysics
 import qualified Linear
 import Ruins.Apecs (unitVelocity, velocityVector, pattern VEL)
 import Ruins.SDL (makeKeyPressed)
+import Data.Foldable (for_)
 import Control.Lens (Lens', set, each, (&), (+~), (-~))
 import Control.Monad (when)
 import qualified Language.Haskell.TH as THaskell
-import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), QuitGame (..), sprites, animated)
+import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..),
+                         QuitGame (..), Lever (..), Pressed (..), sprites, animated)
 
 concat <$> traverse makeKeyPressed [
-  THaskell.mkName "KeycodeEscape"
+  THaskell.mkName "KeycodeZ"
+  , THaskell.mkName "KeycodeEscape"
   ]
 
 escapePressed :: SDL.EventPayload -> Bool
@@ -80,6 +84,18 @@ handleKeyboardState = do
         animate = setAnimationsStatus True
         stopAnimation = setAnimationsStatus False
 
+handleEvent :: SDL.EventPayload -> RSystem ()
+handleEvent = \ case
+  PRESSED_Z ->
+    Apecs.cmapM_ \ (Lever, APhysics.Position leverP, lever) ->
+      Apecs.cmapM_ \ (Frisk, APhysics.Position friskP) ->
+        Apecs.modify lever \ (MkPressed pressed) ->
+          if Linear.norm (leverP - friskP) < 30
+             then MkPressed (not pressed)
+                  else MkPressed pressed
+
+  _otherwise -> pure ()
+
 handleEvents :: RSystem ()
 handleEvents = do
   eventPayloads <- fmap SDL.eventPayload <$> SDL.pollEvents
@@ -87,3 +103,5 @@ handleEvents = do
                || escapePressed `any` eventPayloads
   when quitEvent do
     Apecs.set Apecs.global (MkQuitGame True)
+
+  for_ eventPayloads handleEvent

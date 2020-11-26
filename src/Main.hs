@@ -15,7 +15,8 @@ import Ruins.Step (step)
 import Ruins.Draw (drawGame)
 import Ruins.Apecs (newEntity_, mkPosition, unitVelocity)
 import Ruins.Components (RSystem, Time (..), Frisk (..), Window (..), Renderer (..),
-                         QuitGame (..), Action (..), Speed (..), Boundary (..), initRuins)
+                         Lever (..), QuitGame (..), Action (..), Speed (..), Boundary (..),
+                         Pressed (..), initRuins)
 
 generateDebugRoom :: IO ()
 generateDebugRoom =
@@ -41,10 +42,13 @@ generateDebugRoom =
 
 initGame :: RSystem ()
 initGame = do
-  -- | Debug level boundaries.
+  -- | Debug level boundary.
   Apecs.set Apecs.global (MkBoundary 1305 0 510 116)
+
   newEntity_ (Frisk, MoveDown, MkSpeed 300
            , APhysics.KinematicBody, mkPosition 0 300, unitVelocity)
+
+  newEntity_ (Lever, MkPressed False, APhysics.StaticBody, mkPosition 40 105)
 
 gameLoop :: RSystem ()
 gameLoop = do
