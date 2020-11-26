@@ -26,7 +26,6 @@ import qualified Control.Concurrent.Async as Async
 import Control.Lens (Lens', set, over, to, (^.))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
-import Control.Monad.Trans (lift)
 import Ruins.Components (RSystem, SpriteSheet (..), Resources (..), Name, getName, Animation (..),
                          ResourceMap, animations, sprites, fonts, sounds, music, mkName, pattern Renderer,
                          TileMap (..), Room (..), rooms)
@@ -54,7 +53,7 @@ class ManagedResource resource where
 
 {-# Inline withResource #-}
 withResource :: (FilePath -> IO resource) -> (resource -> IO ()) -> FilePath -> RSystem resource
-withResource load free filePath = lift $ managed do
+withResource load free filePath = managed do
   bracket (Async.withAsync (load filePath) Async.wait) free
 
 instance ManagedResource Font.Font where

@@ -14,6 +14,7 @@ module Ruins.Components (
      , Action (..)
      , Window (..)
      , TileMap (..)
+     , Boundary (..)
      , Renderer (..)
      , QuitGame (..)
      , Resources (..)
@@ -190,6 +191,16 @@ instance Monoid Resources where
   mempty =
     MkResources HMap.empty HMap.empty HMap.empty HMap.empty
 
+data Boundary = MkBoundary {
+     xmax :: Double
+   , xmin :: Double
+   , ymax :: Double
+   , ymin :: Double
+}
+
+instance Semigroup Boundary where _previous <> next = next
+instance Monoid Boundary where mempty = MkBoundary 0 0 0 0
+
 -- | Since there is no way (at least I don't see any)
 -- | to define a Monoid instance for SDL.Window/SDL.Renderer
 -- | we need to wrap it in Maybe.
@@ -223,6 +234,7 @@ traverse makeGlobalComponent [
   , ''Rooms
   , ''Window
   , ''Renderer
+  , ''Boundary
   , ''QuitGame
   , ''Resources
   ]
@@ -242,6 +254,7 @@ Apecs.makeWorld "Ruins" [
   , ''Action
   , ''Window
   , ''Renderer
+  , ''Boundary
   , ''QuitGame
   , ''Resources
   , ''HealthPoints

@@ -51,12 +51,20 @@ drawPart spriteSheetName sourceRect targetRect = do
   sourceSheet <- view spriteSheet <$> getResource sprites spriteSheetName
   SDL.copy renderer sourceSheet (Just sourceRect) (Just targetRect)
 
+drawLogo :: RSystem ()
+drawLogo = do
+  Renderer renderer <- Apecs.get Apecs.global
+  logoSprite <- view spriteSheet <$> getResource sprites (mkName "logo")
+  SDL.copy renderer logoSprite Nothing
+    (Just do mkRectangle (380, 30) (600, 120))
+
 drawRoom :: Name -> RSystem ()
 drawRoom roomName = do
   MkRooms rooms <- Apecs.get Apecs.global
   let maybeRoom = HMap.lookup roomName rooms
       errorMessage = Text.unpack ("drawRoom: no such room " <> getName roomName)
   maybe (fail errorMessage) draw maybeRoom
+  drawLogo
   where draw MkRoom {..} = do
           let Right MkTileMap {..} = _background
           Renderer renderer <- Apecs.get Apecs.global
@@ -64,7 +72,7 @@ drawRoom roomName = do
           ifor_ _tileMap \ rowIndex row ->
             ifor_ row \ columnIndex column ->
               SDL.copy renderer sourceSheet (Just (column ^. tileRectangle))
-                (Just (mkRectangle (unsafeCoerce (columnIndex * 60, rowIndex * 40)) (70,70)))
+                (Just (mkRectangle (unsafeCoerce (columnIndex * 60, rowIndex * 40)) (60,40)))
 
 drawFrisk :: RSystem ()
 drawFrisk = do
