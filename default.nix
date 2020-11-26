@@ -17,7 +17,6 @@ let unstableTarball  = fetchTarball https://github.com/NixOS/nixpkgs-channels/ar
                                        sdl2-mixer
                                        sdl2-ttf
                                        managed
-                                       unliftio
                                        ];
 
     ghc = haskellPackages.ghcWithPackages haskellDependencies;

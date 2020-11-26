@@ -4,6 +4,8 @@
 {-# Language TemplateHaskell #-}
 {-# Language FlexibleContexts #-}
 
+-- | This module exists to extend the interface
+-- | provided by the apecs and apecs-physics packages.
 module Ruins.Apecs where
 
 import qualified Apecs
@@ -12,42 +14,17 @@ import qualified Apecs.Physics as APhysics
 import qualified Linear
 import Foreign.C.Types (CInt)
 import Control.Lens (Iso', iso)
-import UnliftIO (MonadUnliftIO (..))
+import Control.Monad.Managed (Managed)
 import Control.Monad.Reader (ReaderT (..))
-import Control.Monad.Managed (Managed, with, managed)
 import Control.Monad.IO.Class (MonadIO)
 import qualified Language.Haskell.TH as THaskell
 import qualified Language.Haskell.TH.Syntax as THaskell
 
 type ManagedSystem world result = Apecs.SystemT world Managed result
 
--- | We need this to actually use Window/Renderer pattern.
+-- | We need MonadFail instance to actually use Window/Renderer pattern.
 -- | from Ruins.Components module.
-deriving newtype instance MonadFail m =>
-  MonadFail (Apecs.SystemT world m)
-
--- | I defined these unliftio instances
--- | in order to freely call stuff like withAsync
--- , forConcurrently, etc, inside of the Apecs.SystemT.
--- | The fact that the aforementioned functions are all
--- | monomorphic in their monad (IO) was and is kind of annoying
--- , so after I've made some research I was seemingly left with two options:
--- | define either a MonadBaseControl IO instance (to use functions from lifted-async) or the MonadUnliftIO one.
--- | I've chosen the latter because I don't have IO as my base monad.
-instance MonadUnliftIO Managed where
-  {-# Inline withRunInIO #-}
-  withRunInIO inner = managed \ callback ->
-    callback =<< inner (flip with pure)
-
--- | Mostly copied it from ReaderT instance
--- | hackage.haskell.org/package/unliftio-core-0.2.0.1/docs/src/Control.Monad.IO.Unlift.html#line-64
-instance MonadUnliftIO m =>
-  MonadUnliftIO (Apecs.SystemT world m) where
-  {-# Inline withRunInIO #-}
-  withRunInIO inner = Apecs.SystemT $
-    ReaderT \ world ->
-      withRunInIO \ run ->
-        inner (run . flip Apecs.runSystem world)
+deriving newtype instance MonadFail m => MonadFail (Apecs.SystemT world m)
 
 -- | Derive a global component instance if a given type is Monoid.
 makeGlobalComponent :: THaskell.Name -> THaskell.DecQ
