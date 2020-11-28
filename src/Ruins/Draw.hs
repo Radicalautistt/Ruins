@@ -19,7 +19,7 @@ import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
 import Ruins.Components (RSystem, Name (..), Frisk (..), Action (..), SpriteSheet (..), Rooms (..),
                          Room (..), sprites, spriteSheet, clips, currentClipIndex, mkName, pattern Renderer,
-                         TileMap (..), Lever (..), Pressed (..), tileRectangle)
+                         TileMap (..), Lever (..), Pressed (..), Froggit (..), Sprite (..), tileRectangle)
 
 type Colour = Linear.V4 Word8
 
@@ -41,7 +41,7 @@ spriteSheetRow spriteSheetName rowIndex = do
   let animationClips = _animations ^. ix rowIndex . clips
       currentClip = _animations Vector.! rowIndex ^. currentClipIndex
       defaultRectangle = animationClips Vector.! 0
-      maybeRectangle =  animationClips Vector.!? currentClip
+      maybeRectangle = animationClips Vector.!? currentClip
   if _animated
      then maybe (pure defaultRectangle) pure maybeRectangle
           else pure defaultRectangle
@@ -59,8 +59,10 @@ drawLogo renderer = do
 
 drawLevers :: SDL.Renderer -> RSystem ()
 drawLevers renderer = do
-  Apecs.cmapM_ \ (Lever, MkPressed pressed, RXY x y) -> do
+  Apecs.cmapM_ \ (Lever, MkPressed pressed, RXY x y, MkSprite (name, rect)) -> do
     let sourceX = bool 45 53 pressed
+    drawPart renderer name rect
+      (mkRectangle (x - 5, y - 25) (30, 20))
     drawPart renderer (mkName "ruins-tiles") (mkRectangle (sourceX, 1038) (7, 15))
       (mkRectangle (x, y) (20, 41))
 
@@ -97,12 +99,20 @@ drawFrisk renderer = do
       MoveLeft -> draw moveLeft
       MoveRight -> draw moveRight
 
+drawFroggits :: SDL.Renderer -> RSystem ()
+drawFroggits renderer = do
+  sourceRect <- spriteSheetRow (mkName "froggit") 0
+  Apecs.cmapM_ \ (Froggit, RXY x y) ->
+    drawPart renderer (mkName "froggit")
+      sourceRect
+      (mkRectangle (x, y) (59, 60))
+
 drawGame :: RSystem ()
 drawGame = do
   Renderer renderer <- Apecs.get Apecs.global
   SDL.clear renderer
-  SDL.rendererDrawColor renderer SDL.$= pink
   drawRoom renderer (mkName "debug-room")
   drawLevers renderer
+  drawFroggits renderer
   drawFrisk renderer
   SDL.present renderer

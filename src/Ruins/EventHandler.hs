@@ -2,11 +2,11 @@
 {-# Language RankNTypes #-}
 {-# Language ViewPatterns #-}
 {-# Language TemplateHaskell #-}
-{-# Language FlexibleContexts #-}
 
 module Ruins.EventHandler (
        handleEvents
      , handleKeyboardState
+     , animateIndefinitely
      ) where
 
 import qualified SDL
@@ -17,12 +17,14 @@ import qualified Linear
 import Ruins.Apecs (unitVelocity, velocityVector, pattern VEL)
 import Ruins.SDL (makeKeyPressed)
 import Data.Foldable (for_)
-import Control.Lens (Lens', set, each, (&), (+~), (-~))
+import qualified Data.HashMap.Strict as HMap
+import Control.Lens (Lens', set, over, (&), (+~), (-~))
 import Control.Monad (when)
 import qualified Language.Haskell.TH as THaskell
-import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..),
+import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), mkName, Name,
                          QuitGame (..), Lever (..), Pressed (..), sprites, animated)
 
+-- | Generate pressed key patterns.
 concat <$> traverse makeKeyPressed [
   THaskell.mkName "KeycodeZ"
   , THaskell.mkName "KeycodeEscape"
@@ -33,22 +35,37 @@ escapePressed = \ case
   PRESSED_ESCAPE -> True
   _otherwise -> False
 
-increaseVelocityOf :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> RSystem ()
-increaseVelocityOf entity axisLens = Apecs.modify entity \ (VEL _ _, MkSpeed speed) ->
+givePositiveVelocity :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> RSystem ()
+givePositiveVelocity entity axisLens = Apecs.modify entity \ (VEL _ _, MkSpeed speed) ->
   unitVelocity & velocityVector . axisLens +~ speed
 
--- | The name is probably bad since it kind of implies that I am making an entity slower
--- , while in fact I am moving it in a negative direction. I'll think about a better one.
-decreaseVelocityOf :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> RSystem ()
-decreaseVelocityOf entity axisLens = Apecs.modify entity \ (VEL _ _, MkSpeed speed) ->
+giveNegativeVelocity :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> RSystem ()
+giveNegativeVelocity entity axisLens = Apecs.modify entity \ (VEL _ _, MkSpeed speed) ->
   unitVelocity & velocityVector . axisLens -~ speed
 
 dropVelocityOf :: Apecs.Entity -> RSystem ()
 dropVelocityOf entity = Apecs.modify entity \ (VEL _ _) -> unitVelocity
 
+{-# Inline toggleAnimation #-}
+toggleAnimation :: Name -> Bool ->  RSystem ()
+toggleAnimation spriteSheetName enabled =
+  Apecs.modify Apecs.global $
+    over sprites (HMap.update (Just . set animated enabled) spriteSheetName)
+
+animate :: Name -> RSystem ()
+animate spriteSheetName = toggleAnimation spriteSheetName True
+
+stopAnimation :: Name -> RSystem ()
+stopAnimation spriteSheetName = toggleAnimation spriteSheetName False
+
+-- | Enable animations by default for the given spritesheet names.
+-- | Useful when you have some NPCs with a looping animation routine.
+animateIndefinitely :: [Name] -> RSystem ()
+animateIndefinitely names = for_ names animate
+
 -- | I need to handle keyboardState instead of SDL.Event
 -- | for Frisk's movement because events aren't really responsive
--- | in cases of multiple key presses simulteneously.
+-- | in cases of multiple key presses simultaneously.
 -- | I've tried them but the latency was too real.
 -- | So, I've googled up this approach and were happy with it ever since.
 handleKeyboardState :: RSystem ()
@@ -57,32 +74,27 @@ handleKeyboardState = do
   Apecs.cmapM_ \ (Frisk, friskEntity) ->
     if | keyIs SDL.ScancodeUp -> do
            Apecs.set friskEntity MoveUp
-           decreaseVelocityOf friskEntity Linear._y
-           animate
+           giveNegativeVelocity friskEntity Linear._y
+           animate (mkName "frisk")
 
        | keyIs SDL.ScancodeDown -> do
            Apecs.set friskEntity MoveDown
-           increaseVelocityOf friskEntity Linear._y
-           animate
+           givePositiveVelocity friskEntity Linear._y
+           animate (mkName "frisk")
 
        | keyIs SDL.ScancodeLeft -> do
            Apecs.set friskEntity MoveLeft
-           decreaseVelocityOf friskEntity Linear._x
-           animate
+           giveNegativeVelocity friskEntity Linear._x
+           animate (mkName "frisk")
 
        | keyIs SDL.ScancodeRight -> do
            Apecs.set friskEntity MoveRight
-           increaseVelocityOf friskEntity Linear._x
-           animate
+           givePositiveVelocity friskEntity Linear._x
+           animate (mkName "frisk")
 
        | otherwise -> do
            dropVelocityOf friskEntity
-           stopAnimation
-
-  where setAnimationsStatus isActive =
-          Apecs.modify Apecs.global (set (sprites . each . animated) isActive)
-        animate = setAnimationsStatus True
-        stopAnimation = setAnimationsStatus False
+           stopAnimation (mkName "frisk")
 
 handleEvent :: SDL.EventPayload -> RSystem ()
 handleEvent = \ case

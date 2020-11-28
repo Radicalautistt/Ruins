@@ -13,9 +13,11 @@ module Ruins.Components (
      , Frisk (..)
      , Speed (..)
      , Action (..)
+     , Sprite (..)
      , Window (..)
      , Pressed (..)
      , TileMap (..)
+     , Froggit (..)
      , Boundary (..)
      , Renderer (..)
      , QuitGame (..)
@@ -92,6 +94,10 @@ data Lever = Lever
 -- | Used with levers and buttons.
 newtype Pressed = MkPressed Bool
 
+-- | One of the npc's/enemies
+-- | that Frisk would encounter in Ruins.
+data Froggit = Froggit
+
 newtype Speed = MkSpeed Double
   deriving newtype Num
 
@@ -109,15 +115,18 @@ newtype Name = MkName { getName :: Text }
   deriving stock Eq
   deriving newtype Hashable
 
+{-# Inline mkName #-}
 -- | Smart constructor for names
 -- , making sure that the extension is dropped.
 mkName :: FilePath -> Name
-mkName = MkName . Text.pack . dropExtension
+mkName fileName = MkName (Text.pack (dropExtension fileName))
 
 instance Aeson.FromJSON Name where
   parseJSON = Aeson.withText "name" \ text ->
     -- | NOTE: this is dumb
     pure (mkName (Text.unpack text))
+
+newtype Sprite = MkSprite (Name, Rect)
 
 data Tile = MkTile {
      _tileSolid :: Bool
@@ -253,7 +262,9 @@ Apecs.makeMapComponents [
   , ''Room
   , ''Speed
   , ''Lever
+  , ''Sprite
   , ''Pressed
+  , ''Froggit
   , ''HealthPoints
   ]
 
@@ -264,9 +275,11 @@ Apecs.makeWorld "Ruins" [
   , ''Lever
   , ''Speed
   , ''Action
+  , ''Sprite
   , ''Window
   , ''Pressed
   , ''Renderer
+  , ''Froggit
   , ''Boundary
   , ''QuitGame
   , ''Resources

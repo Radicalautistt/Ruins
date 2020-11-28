@@ -60,7 +60,7 @@ instance ManagedResource Font.Font where
   {-# Inline manageResource #-}
   -- | The font size can be fixed because there is only two fonts
   -- , and they have the same recommended size, which is 10.
-  manageResource fileName = withResource (flip Font.load 10) Font.free (fontsPath </> fileName)
+  manageResource fileName = withResource (`Font.load` 10) Font.free (fontsPath </> fileName)
 
 instance ManagedResource Mixer.Chunk where
   {-# Inline manageResource #-}
@@ -102,7 +102,7 @@ loadRooms = do
   results <- liftIO $ Async.forConcurrently roomFiles \ fileName -> do
     fileContents <- BString.readFile (mkAssetPath "rooms" </> fileName)
     either fail (pure . (mkName fileName, ))
-      (Aeson.eitherDecodeStrict' @(TileMap) fileContents)
+      (Aeson.eitherDecodeStrict' @TileMap fileContents)
 
   for_ results \ (name, tileMap) ->
     Apecs.modify Apecs.global
