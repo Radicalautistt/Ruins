@@ -14,7 +14,7 @@ import SDL.Input.Keyboard.Codes
 import qualified Apecs
 import qualified Apecs.Physics as APhysics
 import qualified Linear
-import Ruins.Apecs (unitVelocity, velocityVector, pattern VEL)
+import Ruins.Apecs (unitVelocity, velocityVector, mkPosition, newEntity_, pattern VEL)
 import Ruins.SDL (makeKeyPressed)
 import Data.Foldable (for_)
 import qualified Data.HashMap.Strict as HMap
@@ -22,7 +22,7 @@ import Control.Lens (Lens', set, over, (&), (+~), (-~))
 import Control.Monad (when)
 import qualified Language.Haskell.TH as THaskell
 import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), mkName, Name,
-                         QuitGame (..), Lever (..), Pressed (..), sprites, animated)
+                         QuitGame (..), Froggit (..), Lever (..), Pressed (..), sprites, animated)
 
 -- | Generate pressed key patterns.
 concat <$> traverse makeKeyPressed [
@@ -99,12 +99,17 @@ handleKeyboardState = do
 handleEvent :: SDL.EventPayload -> RSystem ()
 handleEvent = \ case
   PRESSED_Z ->
-    Apecs.cmapM_ \ (Lever, APhysics.Position leverP, lever) ->
-      Apecs.cmapM_ \ (Frisk, APhysics.Position friskP) ->
+    Apecs.cmapM_ \ (Lever, APhysics.Position leverP, MkPressed p, lever) ->
+      Apecs.cmapM_ \ (Frisk, APhysics.Position friskP) -> do
         Apecs.modify lever \ (MkPressed pressed) ->
           if Linear.norm (leverP - friskP) < 30
              then MkPressed (not pressed)
                   else MkPressed pressed
+
+        if not p
+           then newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 300)
+                else Apecs.cmap \ Froggit ->
+                       Apecs.Not @Froggit
 
   _otherwise -> pure ()
 

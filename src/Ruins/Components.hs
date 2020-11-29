@@ -14,12 +14,11 @@ module Ruins.Components (
      , Speed (..)
      , Action (..)
      , Sprite (..)
-     , Window (..)
+     , TextBox (..)
      , Pressed (..)
      , TileMap (..)
      , Froggit (..)
      , Boundary (..)
-     , Renderer (..)
      , QuitGame (..)
      , Resources (..)
      , Animation (..)
@@ -48,17 +47,23 @@ module Ruins.Components (
      , music
      , background
      , rooms
-     , pattern Window
-     , pattern Renderer
+     , sprite
+     , opened
+     , currentText
+     , letterDelay
+     , voiceSound
+     , visibleChunk
      ) where
 
 import qualified SDL
 import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
+import qualified SDL.Internal.Types as SDL
 import Apecs (Has (..), Storage, SystemT (..), explInit)
 import qualified Apecs
 import qualified Apecs.TH as Apecs
 import qualified Apecs.Physics as APhysics
+import Foreign.Ptr (nullPtr)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Aeson ((.:))
@@ -117,7 +122,7 @@ newtype Name = MkName { getName :: Text }
 
 {-# Inline mkName #-}
 -- | Smart constructor for names
--- , making sure that the extension is dropped.
+-- , making sure that extension is dropped.
 mkName :: FilePath -> Name
 mkName fileName = MkName (Text.pack (dropExtension fileName))
 
@@ -188,6 +193,18 @@ data SpriteSheet = MkSpriteSheet {
    , _animations :: Vector Animation
 }
 
+data TextBox = MkTextBox {
+  _sprite :: Maybe Sprite
+  , _opened :: Bool
+  , _currentText :: Text
+  , _letterDelay :: Double
+  , _voiceSound :: Name
+  , _visibleChunk :: Int
+}
+
+instance Semigroup TextBox where _previous <> next = next
+instance Monoid TextBox where mempty = MkTextBox Nothing False Text.empty 0.3 (mkName "") 1
+
 type ResourceMap resource = HashMap Name resource
 
 data Resources = MkResources {
@@ -219,29 +236,13 @@ data Boundary = MkBoundary {
 instance Semigroup Boundary where _previous <> next = next
 instance Monoid Boundary where mempty = MkBoundary 0 0 0 0
 
--- | Since there is no way (at least I don't see any)
--- | to define a Monoid instance for SDL.Window/SDL.Renderer
--- | we need to wrap it in Maybe.
-newtype Window = MkWindow (Maybe SDL.Window)
-instance Semigroup Window where _previous <> next = next
-instance Monoid Window where mempty = MkWindow Nothing
+-- | The Semigroup and Monoid instances for SDL.Window/Renderer
+-- | are needed to use them as global apecs components.
+instance Semigroup SDL.Window where _a <> b = b
+instance Monoid SDL.Window where mempty = SDL.Window nullPtr
 
-{-# Complete Window #-}
--- | Since window and renderer are kind of always present
--- , we don't need to match over the maybe all the time
--- , surmising that it will always be (Just window/renderer).
--- | If one does feel that the entire 'Maybe' thing is thusly superfluous
--- , one surely is right! Well, almost. Its here solely for the sake of apecs.
-pattern Window :: SDL.Window -> Window
-pattern Window window <- MkWindow (Just window)
-
-newtype Renderer = MkRenderer (Maybe SDL.Renderer)
-instance Semigroup Renderer where _previous <> next = next
-instance Monoid Renderer where mempty = MkRenderer Nothing
-
-{-# Complete Renderer #-}
-pattern Renderer :: SDL.Renderer -> Renderer
-pattern Renderer renderer <- MkRenderer (Just renderer)
+instance Semigroup SDL.Renderer where _previous <> next = next
+instance Monoid SDL.Renderer where mempty = SDL.Renderer nullPtr
 
 -- | Global flag telling the game whether it should end or not.
 newtype QuitGame = MkQuitGame Bool
@@ -250,11 +251,12 @@ newtype QuitGame = MkQuitGame Bool
 traverse makeGlobalComponent [
   ''Time
   , ''Rooms
-  , ''Window
-  , ''Renderer
+  , ''TextBox
   , ''Boundary
   , ''QuitGame
   , ''Resources
+  , ''SDL.Window
+  , ''SDL.Renderer
   ]
 
 Apecs.makeMapComponents [
@@ -276,13 +278,14 @@ Apecs.makeWorld "Ruins" [
   , ''Speed
   , ''Action
   , ''Sprite
-  , ''Window
+  , ''TextBox
   , ''Pressed
-  , ''Renderer
   , ''Froggit
   , ''Boundary
   , ''QuitGame
   , ''Resources
+  , ''SDL.Window
+  , ''SDL.Renderer
   , ''HealthPoints
   , ''APhysics.Physics
   ]
@@ -292,6 +295,7 @@ concat <$> traverse makeLenses [
   , ''Tile
   , ''Rooms
   , ''TileMap
+  , ''TextBox
   , ''Animation
   , ''SpriteSheet
   , ''Resources

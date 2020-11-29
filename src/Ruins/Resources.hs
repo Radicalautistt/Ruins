@@ -27,7 +27,7 @@ import Control.Lens (Lens', set, over, to, (^.))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
 import Ruins.Components (RSystem, SpriteSheet (..), Resources (..), Name, getName, Animation (..),
-                         ResourceMap, animations, sprites, fonts, sounds, music, mkName, pattern Renderer,
+                         ResourceMap, animations, sprites, fonts, sounds, music, mkName,
                          TileMap (..), Room (..), rooms)
 
 mkAssetPath :: FilePath -> FilePath
@@ -59,8 +59,8 @@ withResource load free filePath = managed do
 instance ManagedResource Font.Font where
   {-# Inline manageResource #-}
   -- | The font size can be fixed because there is only two fonts
-  -- , and they have the same recommended size, which is 10.
-  manageResource fileName = withResource (`Font.load` 10) Font.free (fontsPath </> fileName)
+  -- , and they have the same recommended size, which is 13.
+  manageResource fileName = withResource (`Font.load` 13) Font.free (fontsPath </> fileName)
 
 instance ManagedResource Mixer.Chunk where
   {-# Inline manageResource #-}
@@ -73,7 +73,7 @@ instance ManagedResource Mixer.Music where
 instance ManagedResource SDL.Texture where
   {-# Inline manageResource #-}
   manageResource filePath = do
-    Renderer renderer <- Apecs.get Apecs.global
+    renderer <- Apecs.get Apecs.global
    
     let loadTexture fileName = do
           sourceSurface <- SDL.loadBMP (spritesPath </> fileName)

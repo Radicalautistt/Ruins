@@ -4,6 +4,7 @@
 module Ruins.Draw (drawGame) where
 
 import qualified SDL
+import qualified SDL.Font as Font
 import qualified Apecs
 import qualified Linear
 import qualified Data.Vector as Vector
@@ -12,14 +13,16 @@ import qualified Data.Text as Text
 import Data.Word (Word8)
 import qualified Data.HashMap.Strict as HMap
 import Foreign.C.Types (CInt)
-import Ruins.SDL (mkRectangle, Rect)
+import Ruins.SDL (mkRectangle, rectPosition, rectExtent, Rect)
 import Ruins.Apecs (pattern RXY)
-import Control.Lens (ifor_, view, ix, (^.))
+import Control.Lens (ifor_, view, ix, (^.), (&~), (-=), (+=))
+import Control.Monad (when)
 import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
 import Ruins.Components (RSystem, Name (..), Frisk (..), Action (..), SpriteSheet (..), Rooms (..),
-                         Room (..), sprites, spriteSheet, clips, currentClipIndex, mkName, pattern Renderer,
-                         TileMap (..), Lever (..), Pressed (..), Froggit (..), Sprite (..), tileRectangle)
+                         Room (..), sprites, spriteSheet, clips, currentClipIndex, mkName,
+                         TileMap (..), Lever (..), Pressed (..), Froggit (..), Sprite (..),
+                         TextBox (..), fonts, tileRectangle)
 
 type Colour = Linear.V4 Word8
 
@@ -66,6 +69,33 @@ drawLevers renderer = do
     drawPart renderer (mkName "ruins-tiles") (mkRectangle (sourceX, 1038) (7, 15))
       (mkRectangle (x, y) (20, 41))
 
+drawRectangle :: SDL.Renderer -> Rect -> Colour -> Colour -> RSystem ()
+drawRectangle renderer rectangle foreground background = do
+  SDL.rendererDrawColor renderer SDL.$= background
+  renderer `SDL.fillRect` Just rectangle
+  let innerRectangle = rectangle &~ do
+        rectExtent Linear._x -= 20
+        rectExtent Linear._y -= 20
+
+        rectPosition Linear._x += 10
+        rectPosition Linear._y += 10
+
+  SDL.rendererDrawColor renderer SDL.$= foreground
+  renderer `SDL.fillRect` Just innerRectangle
+
+drawTextBox :: SDL.Renderer -> RSystem ()
+drawTextBox renderer = do
+  MkTextBox {..} <- Apecs.get Apecs.global
+  when _opened do
+    drawRectangle renderer (mkRectangle (350, 500) (700, 200)) black white
+    dialogueFont <- getResource fonts (mkName "dialogue")
+    tempSurface <- Font.solid dialogueFont white (Text.take _visibleChunk _currentText)
+    textTexture <- SDL.createTextureFromSurface renderer tempSurface
+    SDL.freeSurface tempSurface
+    let textWidth = unsafeCoerce (_visibleChunk * 10)
+    SDL.copy renderer textTexture Nothing (Just do mkRectangle (370, 520) (textWidth, 50))
+    SDL.destroyTexture textTexture
+   
 drawRoom :: SDL.Renderer -> Name -> RSystem ()
 drawRoom renderer roomName = do
   MkRooms rooms <- Apecs.get Apecs.global
@@ -109,10 +139,11 @@ drawFroggits renderer = do
 
 drawGame :: RSystem ()
 drawGame = do
-  Renderer renderer <- Apecs.get Apecs.global
+  renderer <- Apecs.get Apecs.global
   SDL.clear renderer
   drawRoom renderer (mkName "debug-room")
   drawLevers renderer
   drawFroggits renderer
   drawFrisk renderer
+  drawTextBox renderer
   SDL.present renderer

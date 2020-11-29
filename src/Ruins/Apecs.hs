@@ -21,9 +21,6 @@ import qualified Language.Haskell.TH as THaskell
 import qualified Language.Haskell.TH.Syntax as THaskell
 
 type ManagedSystem world result = Apecs.SystemT world Managed result
-
--- | We need MonadFail instance to actually use Window/Renderer pattern.
--- | from Ruins.Components module.
 deriving newtype instance MonadFail m => MonadFail (Apecs.SystemT world m)
 deriving newtype instance MonadManaged m => MonadManaged (Apecs.SystemT world m)
 

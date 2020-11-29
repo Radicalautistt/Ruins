@@ -6,6 +6,7 @@ import qualified Apecs
 import qualified Apecs.Physics as APhysics
 import qualified Data.Text.IO as Text
 import Ruins.SDL (initSDL, quitSDL, mkRectangle)
+import Control.Lens (set)
 import Control.Monad (unless)
 import Control.Monad.Managed (with, runManaged)
 import qualified Data.ByteString as BString
@@ -15,9 +16,9 @@ import Ruins.Step (step)
 import Ruins.EventHandler (animateIndefinitely)
 import Ruins.Draw (drawGame)
 import Ruins.Apecs (newEntity_, mkPosition, unitVelocity)
-import Ruins.Components (RSystem, Time (..), Frisk (..), Window (..), Renderer (..),
+import Ruins.Components (RSystem, Time (..), Frisk (..),
                          Lever (..), QuitGame (..), Action (..), Speed (..), Boundary (..),
-                         Pressed (..), Froggit (..), Sprite (..), mkName, initRuins)
+                         Pressed (..), Sprite (..), letterDelay, currentText, opened, mkName, initRuins)
 
 generateDebugRoom :: IO ()
 generateDebugRoom =
@@ -52,8 +53,6 @@ initGame = do
   newEntity_ (Lever, MkPressed False, APhysics.StaticBody
            , mkPosition 40 105, MkSprite (mkName "froggit", mkRectangle (0, 0) (19, 11)))
 
-  newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 300)
-
 gameLoop :: RSystem ()
 gameLoop = do
   MkQuitGame quitGame <- Apecs.get Apecs.global
@@ -70,8 +69,11 @@ main = do
   quitSDL
   where gameRoutine (window, renderer) = do
           initGame
-          Apecs.set Apecs.global (MkWindow (Just window))
-          Apecs.set Apecs.global (MkRenderer (Just renderer))
+          Apecs.set Apecs.global window
+          Apecs.set Apecs.global renderer
           loadResources
           animateIndefinitely [mkName "froggit"]
+          Apecs.modify Apecs.global (set currentText "monad is merely a monoid in the category of endofunctors")
+          Apecs.modify Apecs.global (set opened True)
+          Apecs.modify Apecs.global (set letterDelay 0.1)
           gameLoop
