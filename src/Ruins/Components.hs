@@ -203,7 +203,7 @@ data TextBox = MkTextBox {
 }
 
 instance Semigroup TextBox where _previous <> next = next
-instance Monoid TextBox where mempty = MkTextBox Nothing False Text.empty 0.3 (mkName "") 1
+instance Monoid TextBox where mempty = MkTextBox Nothing False Text.empty 0.1 (mkName "default-voice") 1
 
 type ResourceMap resource = HashMap Name resource
 

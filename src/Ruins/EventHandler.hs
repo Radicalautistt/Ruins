@@ -16,12 +16,13 @@ import qualified Apecs.Physics as APhysics
 import qualified Linear
 import Ruins.Apecs (unitVelocity, velocityVector, mkPosition, newEntity_, pattern VEL)
 import Ruins.SDL (makeKeyPressed)
+import Ruins.Script (say)
 import Data.Foldable (for_)
 import qualified Data.HashMap.Strict as HMap
 import Control.Lens (Lens', set, over, (&), (+~), (-~))
 import Control.Monad (when)
 import qualified Language.Haskell.TH as THaskell
-import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), mkName, Name,
+import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), mkName, Name, opened,
                          QuitGame (..), Froggit (..), Lever (..), Pressed (..), sprites, animated)
 
 -- | Generate pressed key patterns.
@@ -107,9 +108,12 @@ handleEvent = \ case
                   else MkPressed pressed
 
         if not p
-           then newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 300)
-                else Apecs.cmap \ Froggit ->
-                       Apecs.Not @Froggit
+           then do newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 300)
+                   say "there are two types of snakes, ones that are poisonous and ones that aren't."
+                     0.1 Nothing (mkName "default-voice")
+                else do Apecs.cmap \ Froggit ->
+                         Apecs.Not @Froggit
+                        Apecs.modify Apecs.global (set opened False)
 
   _otherwise -> pure ()
 

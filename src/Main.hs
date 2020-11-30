@@ -6,7 +6,6 @@ import qualified Apecs
 import qualified Apecs.Physics as APhysics
 import qualified Data.Text.IO as Text
 import Ruins.SDL (initSDL, quitSDL, mkRectangle)
-import Control.Lens (set)
 import Control.Monad (unless)
 import Control.Monad.Managed (with, runManaged)
 import qualified Data.ByteString as BString
@@ -18,7 +17,7 @@ import Ruins.Draw (drawGame)
 import Ruins.Apecs (newEntity_, mkPosition, unitVelocity)
 import Ruins.Components (RSystem, Time (..), Frisk (..),
                          Lever (..), QuitGame (..), Action (..), Speed (..), Boundary (..),
-                         Pressed (..), Sprite (..), letterDelay, currentText, opened, mkName, initRuins)
+                         Pressed (..), Sprite (..), mkName, initRuins)
 
 generateDebugRoom :: IO ()
 generateDebugRoom =
@@ -73,7 +72,4 @@ main = do
           Apecs.set Apecs.global renderer
           loadResources
           animateIndefinitely [mkName "froggit"]
-          Apecs.modify Apecs.global (set currentText "monad is merely a monoid in the category of endofunctors")
-          Apecs.modify Apecs.global (set opened True)
-          Apecs.modify Apecs.global (set letterDelay 0.1)
           gameLoop
