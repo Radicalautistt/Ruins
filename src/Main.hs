@@ -15,7 +15,7 @@ import Ruins.Step (step)
 import Ruins.EventHandler (animateIndefinitely)
 import Ruins.Draw (drawGame)
 import Ruins.Apecs (newEntity_, mkPosition, unitVelocity)
-import Ruins.Components (RSystem, Time (..), Frisk (..),
+import Ruins.Components (RSystem, Time (..), Frisk (..), InFight (..), Napstablook (..),
                          Lever (..), QuitGame (..), Action (..), Speed (..), Boundary (..),
                          Pressed (..), Sprite (..), mkName, initRuins)
 
@@ -46,8 +46,10 @@ initGame = do
   -- | Debug level boundary.
   Apecs.set Apecs.global (MkBoundary 1305 0 510 116)
 
-  newEntity_ (Frisk, MoveDown, MkSpeed 300
+  newEntity_ (Frisk, MoveDown, MkSpeed 300, MkInFight False
            , APhysics.KinematicBody, mkPosition 0 300, unitVelocity)
+
+  newEntity_ (Napstablook, MkInFight False, APhysics.StaticBody, mkPosition 300 200)
 
   newEntity_ (Lever, MkPressed False, APhysics.StaticBody
            , mkPosition 40 105, MkSprite (mkName "froggit", mkRectangle (0, 0) (19, 11)))
@@ -71,5 +73,5 @@ main = do
           Apecs.set Apecs.global window
           Apecs.set Apecs.global renderer
           loadResources
-          animateIndefinitely [mkName "froggit"]
+          animateIndefinitely [mkName "froggit", mkName "napstablook"]
           gameLoop

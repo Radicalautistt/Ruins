@@ -13,7 +13,6 @@ import qualified SDL.Mixer as Mixer
 import qualified Apecs
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BString
-import qualified Data.ByteString.Lazy as LBString
 import qualified Data.Text as Text
 import Data.Foldable (for_)
 import Data.Vector (Vector)
@@ -23,7 +22,7 @@ import System.Directory (listDirectory)
 import System.FilePath.Posix ((</>))
 import Control.Exception (bracket)
 import qualified Control.Concurrent.Async as Async
-import Control.Lens (Lens', set, over, to, (^.))
+import Control.Lens (Lens', set, over, (^.), (&))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
 import Ruins.Components (RSystem, SpriteSheet (..), Resources (..), Name, getName, Animation (..),
@@ -87,9 +86,9 @@ loadAnimations :: RSystem ()
 loadAnimations = do
   animationFiles <- liftIO (Vector.fromList <$> listDirectory animationsPath)
   results <- liftIO $ Async.forConcurrently animationFiles \ fileName -> do
-               fileContents <- LBString.readFile (animationsPath </> fileName)
+               fileContents <- BString.readFile (animationsPath </> fileName)
                either fail (pure . (mkName fileName, ))
-                 (Aeson.eitherDecode @(Vector Animation) fileContents)
+                 (Aeson.eitherDecodeStrict' @(Vector Animation) fileContents)
 
   for_ results \ (name, animationVector) ->
     let insertAnimations = set animations animationVector
@@ -143,9 +142,8 @@ getResource :: Lens' Resources (ResourceMap resource) -> Name -> RSystem resourc
 getResource fieldLens resourceName = do
   resources <- Apecs.get Apecs.global
   let resource = do
-        let maybeResource = resources ^. fieldLens . to (HMap.lookup resourceName)
-            -- | Consider writing a custom MonadFail class with Text instead of String.
-            errorMessage = Text.unpack ("getResource: " <> getName resourceName <> " hasn't been found.")
+        let maybeResource = resources ^. fieldLens & HMap.lookup resourceName
+            errorMessage = "getResource: " <> Text.unpack (getName resourceName) <> " hasn't been found."
         maybe (fail errorMessage) pure maybeResource
 
   -- | Perhaps I should switch to async-lifted.

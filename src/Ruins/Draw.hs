@@ -16,13 +16,13 @@ import Foreign.C.Types (CInt)
 import Ruins.SDL (mkRectangle, rectPosition, rectExtent, Rect)
 import Ruins.Apecs (pattern RXY)
 import Control.Lens (ifor_, view, ix, (^.), (&~), (-=), (+=))
-import Control.Monad (when)
+import Control.Monad (when, unless)
 import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
 import Ruins.Components (RSystem, Name (..), Frisk (..), Action (..), SpriteSheet (..), Rooms (..),
                          Room (..), sprites, spriteSheet, clips, currentClipIndex, mkName,
                          TileMap (..), Lever (..), Pressed (..), Froggit (..), Sprite (..),
-                         TextBox (..), fonts, tileRectangle)
+                         TextBox (..), InFight (..), Napstablook (..), fonts, tileRectangle)
 
 type Colour = Linear.V4 Word8
 
@@ -69,6 +69,11 @@ drawLevers renderer = do
     drawPart renderer (mkName "ruins-tiles") (mkRectangle (sourceX, 1038) (7, 15))
       (mkRectangle (x, y) (20, 41))
 
+drawDoor :: SDL.Renderer -> Rect -> RSystem ()
+drawDoor renderer targetRect =
+  drawPart renderer (mkName "ruins-tiles") (mkRectangle (567, 93) (101, 78))
+    targetRect
+
 drawRectangle :: SDL.Renderer -> Rect -> Colour -> Colour -> RSystem ()
 drawRectangle renderer rectangle foreground background = do
   SDL.rendererDrawColor renderer SDL.$= background
@@ -80,8 +85,9 @@ drawRectangle renderer rectangle foreground background = do
         rectPosition Linear._x += 10
         rectPosition Linear._y += 10
 
-  SDL.rendererDrawColor renderer SDL.$= foreground
-  renderer `SDL.fillRect` Just innerRectangle
+  unless (foreground == background) do
+    SDL.rendererDrawColor renderer SDL.$= foreground
+    renderer `SDL.fillRect` Just innerRectangle
 
 drawTextBox :: SDL.Renderer -> RSystem ()
 drawTextBox renderer = do
@@ -92,7 +98,7 @@ drawTextBox renderer = do
     tempSurface <- Font.solid dialogueFont white (Text.take _visibleChunk _currentText)
     textTexture <- SDL.createTextureFromSurface renderer tempSurface
     SDL.freeSurface tempSurface
-    let textWidth = unsafeCoerce (_visibleChunk * 10)
+    let textWidth = unsafeCoerce (_visibleChunk * 13)
     SDL.copy renderer textTexture Nothing (Just do mkRectangle (370, 520) (textWidth, 50))
     SDL.destroyTexture textTexture
    
@@ -109,25 +115,28 @@ drawRoom renderer roomName = do
           ifor_ _tileMap \ rowIndex row ->
             ifor_ row \ columnIndex column ->
               SDL.copy renderer sourceSheet (Just (column ^. tileRectangle))
-                (Just (mkRectangle (unsafeCoerce (columnIndex * 60, rowIndex * 40)) (60,40)))
+                (Just (mkRectangle (unsafeCoerce (columnIndex * 20 * 2, rowIndex * 20 * 2)) (20 * 2,20 * 2)))
 
 drawFrisk :: SDL.Renderer -> RSystem ()
-drawFrisk renderer = do
-  let friskClip = spriteSheetRow (mkName "frisk")
-  moveUp <- friskClip 0
-  moveDown <- friskClip 1
-  moveLeft <- friskClip 2
-  moveRight <- friskClip 3
-  Apecs.cmapM_ \ (Frisk, RXY x y, action) -> do
-   
-    let targetRect = mkRectangle (x, y) friskExtent
-        draw rect = drawPart renderer (mkName "frisk") rect targetRect
+drawFrisk renderer = Apecs.cmapM_ \ (Frisk, RXY x y, action, MkInFight inFight) -> do
+  if inFight
+     then drawPart renderer (mkName "frisk")
+            (mkRectangle (99, 0) (16, 16))
+            (mkRectangle (x, y) (20, 20))
+          else do let friskClip = spriteSheetRow (mkName "frisk")
+                  moveUp <- friskClip 0
+                  moveDown <- friskClip 1
+                  moveLeft <- friskClip 2
+                  moveRight <- friskClip 3
 
-    case action of
-      MoveUp -> draw moveUp
-      MoveDown -> draw moveDown
-      MoveLeft -> draw moveLeft
-      MoveRight -> draw moveRight
+                  let targetRect = mkRectangle (x, y) friskExtent
+                      draw rect = drawPart renderer (mkName "frisk") rect targetRect
+
+                  case action of
+                    MoveUp -> draw moveUp
+                    MoveDown -> draw moveDown
+                    MoveLeft -> draw moveLeft
+                    MoveRight -> draw moveRight
 
 drawFroggits :: SDL.Renderer -> RSystem ()
 drawFroggits renderer = do
@@ -137,13 +146,26 @@ drawFroggits renderer = do
       sourceRect
       (mkRectangle (x, y) (59, 60))
 
+drawNapstablook :: SDL.Renderer -> RSystem ()
+drawNapstablook renderer =
+  Apecs.cmapM_ \ (Napstablook, RXY x y, MkInFight inFight) ->
+    if not inFight
+       then drawPart renderer (mkName "napstablook")
+              (mkRectangle (15, 121) (33, 17))
+              (mkRectangle (x, y) (99, 51))
+            else do stareRect <- spriteSheetRow (mkName "napstablook") 0
+                    drawPart renderer (mkName "napstablook")
+                      stareRect (mkRectangle (x, y) (300, 400))
+
 drawGame :: RSystem ()
 drawGame = do
   renderer <- Apecs.get Apecs.global
   SDL.clear renderer
   drawRoom renderer (mkName "debug-room")
+  drawDoor renderer (mkRectangle (100, 0) (223, 200))
   drawLevers renderer
   drawFroggits renderer
+  drawNapstablook renderer
   drawFrisk renderer
   drawTextBox renderer
   SDL.present renderer

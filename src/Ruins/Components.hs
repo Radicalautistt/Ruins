@@ -14,6 +14,7 @@ module Ruins.Components (
      , Speed (..)
      , Action (..)
      , Sprite (..)
+     , InFight (..)
      , TextBox (..)
      , Pressed (..)
      , TileMap (..)
@@ -22,6 +23,7 @@ module Ruins.Components (
      , QuitGame (..)
      , Resources (..)
      , Animation (..)
+     , Napstablook (..)
      , ResourceMap
      , SpriteSheet (..)
      -- | Hide constructor.
@@ -87,10 +89,24 @@ newtype Time = MkTime Double
   deriving newtype Num
   deriving (Semigroup, Monoid) via Sum Double
 
+-- | Main hero/villain.
 data Frisk = Frisk
 
 instance Apecs.Component Frisk where
   type Storage Frisk = Apecs.Unique Frisk
+
+-- | First boss. A really nice guy, actually.
+data Napstablook = Napstablook
+
+instance Apecs.Component Napstablook where
+  type Storage Napstablook = Apecs.Unique Napstablook
+
+-- | The flag component, that indicates
+-- | how to render, etc, an associated entity.
+-- | For example, in normal game Frisk are rendered as
+-- | a humanoid character, while in fight scenes they are
+-- | rendered as a heart.
+newtype InFight = MkInFight Bool
 
 data Lever = Lever
 
@@ -265,6 +281,7 @@ Apecs.makeMapComponents [
   , ''Speed
   , ''Lever
   , ''Sprite
+  , ''InFight
   , ''Pressed
   , ''Froggit
   , ''HealthPoints
@@ -279,12 +296,14 @@ Apecs.makeWorld "Ruins" [
   , ''Action
   , ''Sprite
   , ''TextBox
+  , ''InFight
   , ''Pressed
   , ''Froggit
   , ''Boundary
   , ''QuitGame
   , ''Resources
   , ''SDL.Window
+  , ''Napstablook
   , ''SDL.Renderer
   , ''HealthPoints
   , ''APhysics.Physics

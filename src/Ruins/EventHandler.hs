@@ -48,7 +48,7 @@ dropVelocityOf :: Apecs.Entity -> RSystem ()
 dropVelocityOf entity = Apecs.modify entity \ (VEL _ _) -> unitVelocity
 
 {-# Inline toggleAnimation #-}
-toggleAnimation :: Name -> Bool ->  RSystem ()
+toggleAnimation :: Name -> Bool -> RSystem ()
 toggleAnimation spriteSheetName enabled =
   Apecs.modify Apecs.global $
     over sprites (HMap.update (Just . set animated enabled) spriteSheetName)
@@ -110,7 +110,7 @@ handleEvent = \ case
         if not p
            then do newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 300)
                    say "there are two types of snakes, ones that are poisonous and ones that aren't."
-                     0.1 Nothing (mkName "default-voice")
+                     0.09 Nothing (mkName "default-voice")
                 else do Apecs.cmap \ Froggit ->
                          Apecs.Not @Froggit
                         Apecs.modify Apecs.global (set opened False)
@@ -119,7 +119,7 @@ handleEvent = \ case
 
 handleEvents :: RSystem ()
 handleEvents = do
-  eventPayloads <- fmap SDL.eventPayload <$> SDL.pollEvents
+  eventPayloads <- map SDL.eventPayload <$> SDL.pollEvents
   let quitEvent = SDL.QuitEvent `elem` eventPayloads
                || escapePressed `any` eventPayloads
   when quitEvent do
