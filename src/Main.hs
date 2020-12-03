@@ -15,10 +15,13 @@ import Ruins.Step (step)
 import Ruins.EventHandler (animateIndefinitely)
 import Ruins.Draw (drawGame)
 import Ruins.Apecs (newEntity_, mkPosition, unitVelocity)
-import Ruins.Components (RSystem, Time (..), Frisk (..), InFight (..), Napstablook (..),
-                         Lever (..), QuitGame (..), Action (..), Speed (..), Boundary (..),
-                         Pressed (..), Sprite (..), mkName, initRuins)
+import Ruins.Miscellaneous (mkName)
+import Ruins.Components.Sprites (Sprite (..))
+import Ruins.Components.World (RSystem, Time (..), Lever (..), QuitGame (..), Boundary (..),
+                               Pressed (..), initRuins)
 
+import Ruins.Components.Characters (Frisk (..), InFight (..), Napstablook (..),
+                                    Action (..), Speed (..))
 generateDebugRoom :: IO ()
 generateDebugRoom =
   BString.writeFile "assets/rooms/debug-room.json" roomConfig

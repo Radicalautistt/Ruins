@@ -14,9 +14,9 @@ import Control.Monad (when, void)
 import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
 import Ruins.EventHandler (handleEvents, handleKeyboardState)
-import Ruins.Components (RSystem, Time (..), Animation (..), Frisk (..), Boundary (..),
-                         SpriteSheet (..), TextBox (..), visibleChunk, currentClipIndex,
-                         sprites, sounds, animations)
+import Ruins.Components.Sprites (Animation (..), SpriteSheet (..), animations, currentClipIndex)
+import Ruins.Components.Characters (Frisk (..))
+import Ruins.Components.World (RSystem, Time (..),  Boundary (..), TextBox (..), visibleChunk, sprites, sounds)
 
 incrementTime :: Time -> RSystem ()
 incrementTime deltaTime = Apecs.modify Apecs.global \ currentTime ->
@@ -43,11 +43,11 @@ stepAnimations deltaTime = do
   currentTime <- Apecs.get Apecs.global
   let stepAnimation spriteSheet@MkSpriteSheet {..} =
         spriteSheet & animations . each %~ \ animation@MkAnimation {..} ->
-          case _clips Vector.!? _currentClipIndex of
+          case _animationClips Vector.!? _currentClipIndex of
             Nothing -> animation & currentClipIndex .~ 0
             Just _rect ->
               bool animation (animation & currentClipIndex +~ 1)
-                (_animated && stepNeeded currentTime deltaTime _delay)
+                (_animated && stepNeeded currentTime deltaTime _animationDelay)
 
   Apecs.modify Apecs.global
     (over (sprites . each) stepAnimation)

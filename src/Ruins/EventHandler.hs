@@ -22,8 +22,10 @@ import qualified Data.HashMap.Strict as HMap
 import Control.Lens (Lens', set, over, (&), (+~), (-~))
 import Control.Monad (when)
 import qualified Language.Haskell.TH as THaskell
-import Ruins.Components (RSystem, Frisk (..), Speed (..), Action (..), mkName, Name, opened,
-                         QuitGame (..), Froggit (..), Lever (..), Pressed (..), sprites, animated)
+import Ruins.Miscellaneous (Name, mkName)
+import Ruins.Components.Sprites (animated)
+import Ruins.Components.Characters (Frisk (..), Speed (..), Action (..), Froggit (..))
+import Ruins.Components.World (RSystem, opened, QuitGame (..), Lever (..), Pressed (..), sprites)
 
 -- | Generate pressed key patterns.
 concat <$> traverse makeKeyPressed [

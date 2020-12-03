@@ -19,10 +19,14 @@ import Control.Lens (ifor_, view, ix, (^.), (&~), (-=), (+=))
 import Control.Monad (when, unless)
 import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
-import Ruins.Components (RSystem, Name (..), Frisk (..), Action (..), SpriteSheet (..), Rooms (..),
-                         Room (..), sprites, spriteSheet, clips, currentClipIndex, mkName,
-                         TileMap (..), Lever (..), Pressed (..), Froggit (..), Sprite (..),
-                         TextBox (..), InFight (..), Napstablook (..), fonts, tileRectangle)
+import Ruins.Miscellaneous (Name, mkName, getName)
+import Ruins.Components.Characters (Frisk (..), Action (..), InFight (..), Froggit (..), Napstablook (..))
+import Ruins.Components.World (RSystem, Rooms (..), Room (..), sprites,
+                               Lever (..), Pressed (..), TextBox (..), fonts)
+
+import Ruins.Components.Sprites (SpriteSheet (..), TileMap (..), Sprite (..),
+                                 animationClips, currentClipIndex, tileRectangle,
+                                 spriteSheet)
 
 type Colour = Linear.V4 Word8
 
@@ -41,10 +45,10 @@ pink = Linear.V4 255 204 229 0
 spriteSheetRow :: Name -> Int -> RSystem Rect
 spriteSheetRow spriteSheetName rowIndex = do
   MkSpriteSheet {..} <- getResource sprites spriteSheetName
-  let animationClips = _animations ^. ix rowIndex . clips
+  let clips = _animations ^. ix rowIndex . animationClips
       currentClip = _animations Vector.! rowIndex ^. currentClipIndex
-      defaultRectangle = animationClips Vector.! 0
-      maybeRectangle = animationClips Vector.!? currentClip
+      defaultRectangle = clips Vector.! 0
+      maybeRectangle = clips Vector.!? currentClip
   if _animated
      then maybe (pure defaultRectangle) pure maybeRectangle
           else pure defaultRectangle

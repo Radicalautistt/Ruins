@@ -25,9 +25,10 @@ import qualified Control.Concurrent.Async as Async
 import Control.Lens (Lens', set, over, (^.), (&))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
-import Ruins.Components (RSystem, SpriteSheet (..), Resources (..), Name, getName, Animation (..),
-                         ResourceMap, animations, sprites, fonts, sounds, music, mkName,
-                         TileMap (..), Room (..), rooms)
+import Ruins.Miscellaneous (Name, mkName, getName)
+import Ruins.Components.Sprites (Animation, TileMap, SpriteSheet (..), animations)
+import Ruins.Components.World (RSystem, Resources (..),
+                               ResourceMap, sprites, fonts, sounds, music, Room (..), rooms)
 
 mkAssetPath :: FilePath -> FilePath
 mkAssetPath = (</>) "assets"

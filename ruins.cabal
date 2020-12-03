@@ -24,8 +24,12 @@ executable ruins
                        Ruins.Step
                        Ruins.Script
                        Ruins.Resources
-                       Ruins.Components
                        Ruins.EventHandler
+                       Ruins.Miscellaneous
+
+                       Ruins.Components.World
+                       Ruins.Components.Sprites
+                       Ruins.Components.Characters
 
   build-depends:       base ^>=4.13.0.0
                      , lens

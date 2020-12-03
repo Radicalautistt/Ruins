@@ -3,7 +3,9 @@ module Ruins.Script (say) where
 import qualified Apecs
 import Data.Text (Text)
 import Control.Lens ((&~), (.=))
-import Ruins.Components (RSystem, Name, Sprite, opened, currentText, sprite, voiceSound, letterDelay)
+import Ruins.Miscellaneous (Name)
+import Ruins.Components.Sprites (Sprite)
+import Ruins.Components.World (RSystem, opened, currentText, sprite, voiceSound, letterDelay)
 
 say :: Text -> Double -> Maybe Sprite -> Name -> RSystem ()
 say text textDelay entityFace voiceName =
