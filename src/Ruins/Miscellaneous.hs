@@ -1,17 +1,28 @@
+{-# Language FlexibleContexts #-}
+
 module Ruins.Miscellaneous (
        Name
      , mkName
      , getName
+     , afor_
+     , emptyUArray
      ) where
 
+import GHC.Int (Int32)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Aeson as Aeson
 import Data.Hashable (Hashable)
-import System.FilePath.Posix (dropExtension)
+import Data.Ix (Ix (..))
+import Data.Array.Unboxed (UArray)
+import Data.Foldable (for_)
+import Data.Array.IArray (IArray (..))
+import qualified Data.Array.IArray as IArray
+import qualified System.FilePath.Posix as FPath
+import Control.Monad.IO.Class (MonadIO (..))
 
 -- | Filename without file extension.
--- | Used as a key for ResourceMap.
+-- | Used mostly as a key for Ruins.Components.World.ResourceMap.
 newtype Name = MkName { getName :: Text }
   deriving stock Eq
   deriving newtype Hashable
@@ -20,9 +31,23 @@ newtype Name = MkName { getName :: Text }
 -- | Smart constructor for names
 -- , making sure that extension is dropped.
 mkName :: FilePath -> Name
-mkName fileName = MkName (Text.pack (dropExtension fileName))
+mkName fileName = MkName (Text.pack (FPath.dropExtension fileName))
 
 instance Aeson.FromJSON Name where
   parseJSON = Aeson.withText "name" \ text ->
     -- | NOTE: this is dumb
     pure (mkName (Text.unpack text))
+
+emptyUArray :: (Num value, Ix value, IArray UArray value) => UArray value value
+emptyUArray = IArray.listArray (0, 0) []
+
+{-# Inline afor_ #-}
+-- | for_ (flipped traverse_) over an unboxed array.
+afor_ :: (Applicative f, Ix index, IArray UArray value) =>
+         UArray index value -> (value -> f ()) -> f ()
+afor_ array action = case bounds array of
+  arrayBounds -> for_ (range arrayBounds) \ i ->
+    action (array IArray.! i)
+
+{-# Specialize afor_ :: MonadIO m =>
+    UArray Int32 Int32 -> (Int32 -> m ()) -> m () #-}

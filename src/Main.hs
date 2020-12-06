@@ -8,9 +8,7 @@ import qualified Data.Text.IO as Text
 import Ruins.SDL (initSDL, quitSDL, mkRectangle)
 import Control.Monad (unless)
 import Control.Monad.Managed (with, runManaged)
-import qualified Data.ByteString as BString
-import qualified Data.ByteString.Char8 as BString
-import Ruins.Resources (loadResources)
+import Ruins.Resources (loadResources, loadRoom)
 import Ruins.Step (step)
 import Ruins.EventHandler (animateIndefinitely)
 import Ruins.Draw (drawGame)
@@ -22,27 +20,6 @@ import Ruins.Components.World (RSystem, Time (..), Lever (..), QuitGame (..), Bo
 
 import Ruins.Components.Characters (Frisk (..), InFight (..), Napstablook (..),
                                     Action (..), Speed (..))
-generateDebugRoom :: IO ()
-generateDebugRoom =
-  BString.writeFile "assets/rooms/debug-room.json" roomConfig
-  where wallTile :: BString.ByteString
-        wallTile = "{ \"tile-solid\":true, \"tile-rectangle\": [21, 803, 20, 20] }"
-        floorTile :: BString.ByteString
-        floorTile = "{ \"tile-solid\":false, \"tile-rectangle\": [203, 643, 20, 20] }"
-
-        walls = "[ " <> BString.intercalate ", " (replicate 25 wallTile) <> " ]"
-        floor' = "[ " <> BString.intercalate ", " (replicate 25 floorTile) <> " ]"
-
-        roomConfig = BString.unlines [
-          "{"
-          , "\"tile-map\": ["
-          , BString.intercalate ",\n" (replicate 5 walls) <> ","
-          , BString.intercalate ",\n" (replicate 10 floor') <> ","
-          , BString.intercalate ",\n" (replicate 5 walls)
-          , "],"
-          , "\"source-name\": \"ruins-tiles\""
-          , "}"
-          ]
 
 initGame :: RSystem ()
 initGame = do
@@ -66,7 +43,6 @@ gameLoop = do
 
 main :: IO ()
 main = do
-  generateDebugRoom
   world <- initRuins
   with initSDL do runManaged . Apecs.runWith world . gameRoutine
   Text.putStrLn "Farewell"
@@ -76,5 +52,6 @@ main = do
           Apecs.set Apecs.global window
           Apecs.set Apecs.global renderer
           loadResources
+          loadRoom "debug.json"
           animateIndefinitely [mkName "froggit", mkName "napstablook"]
           gameLoop

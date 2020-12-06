@@ -3,7 +3,8 @@
 {-# Language TupleSections #-}
 
 module Ruins.Resources (
-       getResource
+       loadRoom
+     , getResource
      , loadResources
      ) where
 
@@ -26,9 +27,9 @@ import Control.Lens (Lens', set, over, (^.), (&))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
 import Ruins.Miscellaneous (Name, mkName, getName)
-import Ruins.Components.Sprites (Animation, TileMap, SpriteSheet (..), animations)
-import Ruins.Components.World (RSystem, Resources (..),
-                               ResourceMap, sprites, fonts, sounds, music, Room (..), rooms)
+import Ruins.Components.Sprites (Animation, SpriteSheet (..), animations)
+import Ruins.Components.World (RSystem, Resources (..), NewRoom (..),
+                               ResourceMap, sprites, fonts, sounds, music)
 
 mkAssetPath :: FilePath -> FilePath
 mkAssetPath = (</>) "assets"
@@ -96,17 +97,23 @@ loadAnimations = do
     in Apecs.modify Apecs.global
         (over sprites (HMap.update (Just . insertAnimations) name))
 
-loadRooms :: RSystem ()
-loadRooms = do
-  roomFiles <- liftIO (listDirectory (mkAssetPath "rooms"))
-  results <- liftIO $ Async.forConcurrently roomFiles \ fileName -> do
-    fileContents <- BString.readFile (mkAssetPath "rooms" </> fileName)
-    either fail (pure . (mkName fileName, ))
-      (Aeson.eitherDecodeStrict' @TileMap fileContents)
+-- loadRooms :: RSystem ()
+-- loadRooms = do
+--   roomFiles <- liftIO (listDirectory (mkAssetPath "rooms"))
+--   results <- liftIO $ Async.forConcurrently roomFiles \ fileName -> do
+--     fileContents <- BString.readFile (mkAssetPath "rooms" </> fileName)
+--     either fail (pure . (mkName fileName, ))
+--       (Aeson.eitherDecodeStrict' @TileMap fileContents)
 
-  for_ results \ (name, tileMap) ->
-    Apecs.modify Apecs.global
-      (over rooms (HMap.insert name (MkRoom (Right tileMap))))
+--   for_ results \ (name, tileMap) ->
+--     Apecs.modify Apecs.global
+--       (over rooms (HMap.insert name (MkRoom (Right tileMap))))
+
+loadRoom :: FilePath -> RSystem ()
+loadRoom roomFile = do
+  rawRoom <- liftIO (BString.readFile (mkAssetPath "rooms" </> roomFile))
+  either fail (Apecs.set Apecs.global)
+    (Aeson.eitherDecodeStrict' @NewRoom rawRoom)
 
 loadResources :: RSystem ()
 loadResources = do
@@ -122,7 +129,6 @@ loadResources = do
   for_ soundFiles (insertResource sounds)
   for_ musicFiles (insertResource music)
 
-  loadRooms
   loadAnimations
 
   where contentsOf = liftIO . listDirectory
