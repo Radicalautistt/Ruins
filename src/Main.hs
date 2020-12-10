@@ -5,14 +5,14 @@ module Main where
 import qualified Apecs
 import qualified Apecs.Physics as APhysics
 import qualified Data.Text.IO as Text
-import Ruins.SDL (initSDL, quitSDL, mkRectangle)
+import Ruins.Extra.SDL (initSDL, quitSDL, mkRectangle)
 import Control.Monad (unless)
 import Control.Monad.Managed (with, runManaged)
 import Ruins.Resources (loadResources, loadRoom)
 import Ruins.Step (step)
 import Ruins.EventHandler (animateIndefinitely)
 import Ruins.Draw (drawGame)
-import Ruins.Apecs (newEntity_, mkPosition, unitVelocity)
+import Ruins.Extra.Apecs (newEntity_, mkPosition, unitVelocity)
 import Ruins.Miscellaneous (mkName)
 import Ruins.Components.Sprites (Sprite (..))
 import Ruins.Components.World (RSystem, Time (..), Lever (..), QuitGame (..), Boundary (..),

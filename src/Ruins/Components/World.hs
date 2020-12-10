@@ -7,9 +7,7 @@
 module Ruins.Components.World (
        RSystem
      , Room (..)
-     , NewRoom (..)
      , Time (..)
-     , Rooms (..)
      , Lever (..)
      , TextBox (..)
      , Pressed (..)
@@ -22,8 +20,6 @@ module Ruins.Components.World (
      , fonts
      , sounds
      , music
-     , background
-     , rooms
      , sprite
      , opened
      , currentText
@@ -53,9 +49,9 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Aeson ((.:))
 import qualified Data.Aeson as Aeson
-import Ruins.Apecs (ManagedSystem, makeGlobalComponent)
+import Ruins.Extra.Apecs (ManagedSystem, makeGlobalComponent)
 import Ruins.Miscellaneous (Name, mkName, emptyUArray)
-import Ruins.Components.Sprites (Sprite (..), SpriteSheet (..), TileMap (..), NewTileMap (..))
+import Ruins.Components.Sprites (Sprite (..), SpriteSheet (..), TileMap (..), CurrentRoomTexture (..))
 import Ruins.Components.Characters (Frisk, Froggit, Napstablook, InFight, Speed, HealthPoints, Action)
 import Control.Lens (makeLenses)
 import Control.Monad.Reader (asks)
@@ -71,34 +67,27 @@ data Lever = Lever
 -- | Used with levers and buttons.
 newtype Pressed = MkPressed Bool
 
-data NewRoom = MkNewRoom {
+data Room = MkRoom {
    _roomSize :: Linear.V2 CInt
  , _cameraActive :: Bool
- , _roomBackground :: Either Sprite NewTileMap
+ , _roomBackground :: Either Sprite TileMap
 }
 
-instance Semigroup NewRoom where
+instance Semigroup Room where
   _previous <> next = next
 
-instance Monoid NewRoom where
-  mempty = MkNewRoom Linear.zero False (Right (MkNewTileMap emptyUArray (mkName "")))
+instance Monoid Room where
+  mempty = MkRoom Linear.zero False (Right (MkTileMap (mkName "") "" emptyUArray 0 0 0 0))
 
 deriving anyclass instance Aeson.FromJSON element =>
   Aeson.FromJSON (Linear.V2 element)
 
-instance Aeson.FromJSON NewRoom where
+instance Aeson.FromJSON Room where
   parseJSON = Aeson.withObject "room configuration object" \ object -> do
     _roomSize <- object .: "room-size"
     _cameraActive <- object .: "camera-active"
     _roomBackground <- object .: "room-background"
-    pure MkNewRoom {..}
-
-data Room = MkRoom {
-  _background :: Either SDL.Texture TileMap
-}
-
-newtype Rooms = MkRooms { _rooms :: HashMap Name Room }
-  deriving newtype (Semigroup, Monoid)
+    pure MkRoom {..}
 
 data TextBox = MkTextBox {
   _sprite :: Maybe Sprite
@@ -157,9 +146,7 @@ newtype QuitGame = MkQuitGame Bool
 
 traverse makeGlobalComponent [
   ''Time
-  , ''Rooms
   , ''TextBox
-  , ''NewRoom
   , ''Boundary
   , ''QuitGame
   , ''Resources
@@ -175,7 +162,6 @@ Apecs.makeMapComponents [
 
 Apecs.makeWorld "Ruins" [
   ''Time
-  , ''Rooms
   , ''Frisk
   , ''Lever
   , ''Speed
@@ -183,7 +169,6 @@ Apecs.makeWorld "Ruins" [
   , ''Sprite
   , ''TextBox
   , ''InFight
-  , ''NewRoom
   , ''Pressed
   , ''Froggit
   , ''Boundary
@@ -194,12 +179,11 @@ Apecs.makeWorld "Ruins" [
   , ''SDL.Renderer
   , ''HealthPoints
   , ''APhysics.Physics
+  , ''CurrentRoomTexture
   ]
 
 concat <$> traverse makeLenses [
   ''Room
-  , ''NewRoom
-  , ''Rooms
   , ''TextBox
   , ''Resources
   ]

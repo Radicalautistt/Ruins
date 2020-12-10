@@ -14,8 +14,8 @@ import SDL.Input.Keyboard.Codes
 import qualified Apecs
 import qualified Apecs.Physics as APhysics
 import qualified Linear
-import Ruins.Apecs (unitVelocity, velocityVector, mkPosition, newEntity_, pattern VEL)
-import Ruins.SDL (makeKeyPressed)
+import Ruins.Extra.Apecs (unitVelocity, velocityVector, mkPosition, newEntity_, pattern VEL)
+import Ruins.Extra.SDL (makeKeyPressed)
 import Ruins.Script (say)
 import Data.Foldable (for_)
 import qualified Data.HashMap.Strict as HMap

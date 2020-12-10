@@ -5,14 +5,14 @@ let
       haskellPackages = nixpkgs.haskellPackages.override {
         overrides = new: old: rec {
         ruins = new.callPackage ./ruins.nix {};
-        aeson-tiled = new.callPackage ./nix/aeson-tiled.nix {};
         };
       };
     };
   };
 
-  unstableTarball = fetchTarball https://github.com/NixOS/nixpkgs-channels/archive/nixos-unstable.tar.gz;
-  nixpkgs = import unstableTarball { inherit config; };
+  nixpkgs =
+    import (fetchTarball
+      https://github.com/NixOS/nixpkgs-channels/archive/nixos-unstable.tar.gz) { inherit config; };
 
 in {
   ruins = nixpkgs.haskellPackages.ruins;

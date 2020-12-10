@@ -12,9 +12,12 @@ import qualified SDL
 import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
 import qualified Apecs
+import qualified Linear
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BString
 import qualified Data.Text as Text
+import qualified Data.Array.IArray as Array
+import Foreign.C.Types (CInt (..))
 import Data.Foldable (for_)
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
@@ -23,16 +26,22 @@ import System.Directory (listDirectory)
 import System.FilePath.Posix ((</>))
 import Control.Exception (bracket)
 import qualified Control.Concurrent.Async as Async
-import Control.Lens (Lens', set, over, (^.), (&))
+import Control.Lens (Lens', set, view, over, (^.), (&))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
+import Ruins.Extra.SDL (Rect, mkRectangle)
 import Ruins.Miscellaneous (Name, mkName, getName)
-import Ruins.Components.Sprites (Animation, SpriteSheet (..), animations)
-import Ruins.Components.World (RSystem, Resources (..), NewRoom (..),
+import Ruins.Components.Sprites (Animation, SpriteSheet (..), TileMap (..), CurrentRoomTexture (..),
+                                 spriteSheet, animations)
+
+import Ruins.Components.World (RSystem, Resources (..), Room (..),
                                ResourceMap, sprites, fonts, sounds, music)
 
 mkAssetPath :: FilePath -> FilePath
 mkAssetPath = (</>) "assets"
+
+roomsPath :: FilePath
+roomsPath = mkAssetPath "rooms"
 
 spritesPath :: FilePath
 spritesPath = mkAssetPath "sprites"
@@ -97,23 +106,38 @@ loadAnimations = do
     in Apecs.modify Apecs.global
         (over sprites (HMap.update (Just . insertAnimations) name))
 
--- loadRooms :: RSystem ()
--- loadRooms = do
---   roomFiles <- liftIO (listDirectory (mkAssetPath "rooms"))
---   results <- liftIO $ Async.forConcurrently roomFiles \ fileName -> do
---     fileContents <- BString.readFile (mkAssetPath "rooms" </> fileName)
---     either fail (pure . (mkName fileName, ))
---       (Aeson.eitherDecodeStrict' @TileMap fileContents)
-
---   for_ results \ (name, tileMap) ->
---     Apecs.modify Apecs.global
---       (over rooms (HMap.insert name (MkRoom (Right tileMap))))
-
 loadRoom :: FilePath -> RSystem ()
 loadRoom roomFile = do
-  rawRoom <- liftIO (BString.readFile (mkAssetPath "rooms" </> roomFile))
-  either fail (Apecs.set Apecs.global)
-    (Aeson.eitherDecodeStrict' @NewRoom rawRoom)
+  rawRoom <- liftIO (BString.readFile (roomsPath </> roomFile))
+  MkRoom {..} <-
+    either fail pure (Aeson.eitherDecodeStrict' @Room rawRoom)
+
+  renderer <- Apecs.get Apecs.global
+  case _roomBackground of
+    Left _backgroundName -> pure ()
+
+    Right MkTileMap {..} -> do
+      rawRects <- liftIO (BString.readFile _sourceRectsPath)
+      sourceRects <-
+        either fail pure (Aeson.eitherDecodeStrict' @(Vector Rect) rawRects)
+
+      sourceTexture <- view spriteSheet <$> getResource sprites _sourceName
+      targetTexture <- SDL.createTexture renderer
+        SDL.RGB888 SDL.TextureAccessTarget _roomSize
+
+      SDL.rendererRenderTarget renderer SDL.$= Just targetTexture
+
+      for_ [0.. _tileMapHeight - 1] \ rowIndex ->
+        for_ [0.. _tileMapWidth - 1] \ columnIndex ->
+          case _tileMap Array.! (rowIndex * _tileMapWidth + columnIndex) of
+            tile -> case sourceRects Vector.! (fromIntegral tile - 1) of
+              tileRect ->
+                SDL.copyEx renderer sourceTexture (Just tileRect)
+                  (Just (mkRectangle (CInt (columnIndex * _tileWidth), CInt (rowIndex * _tileHeight))
+                         (CInt _tileWidth, CInt _tileHeight))) 0 Nothing (Linear.V2 False False)
+                 
+      SDL.rendererRenderTarget renderer SDL.$= Nothing
+      Apecs.set Apecs.global (MkCurrentRoomTexture targetTexture)
 
 loadResources :: RSystem ()
 loadResources = do

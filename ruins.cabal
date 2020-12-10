@@ -2,8 +2,7 @@ cabal-version:         2.4
 
 name:                  ruins
 version:               0.1.0.0
--- synopsis:
--- description:
+description:           A Haskell remake of the RUINS section from Undertale.
 homepage:              https://github.com/Radicalautistt/Ruins
 bug-reports:           https://github.com/Radicalautistt/Ruins/issues
 license:               NONE
@@ -18,14 +17,15 @@ executable ruins
   main-is:             Main.hs
 
   other-modules:       Paths_ruins
-                       Ruins.SDL
-                       Ruins.Apecs
                        Ruins.Draw
                        Ruins.Step
                        Ruins.Script
                        Ruins.Resources
                        Ruins.EventHandler
                        Ruins.Miscellaneous
+
+                       Ruins.Extra.SDL
+                       Ruins.Extra.Apecs
 
                        Ruins.Components.World
                        Ruins.Components.Sprites
@@ -76,6 +76,8 @@ executable ruins
                        OverloadedLabels
                        GeneralizedNewtypeDeriving
                        ScopedTypeVariables
+
+  other-extensions:    TemplateHaskell
 
   ghc-options:         -Wall -O2 -threaded -with-rtsopts=-N
   -- options for profiling

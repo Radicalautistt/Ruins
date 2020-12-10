@@ -9,7 +9,7 @@ import Data.Bool (bool)
 import qualified Data.Text as Text
 import Control.Lens (over, each, (&), (.~), (+~), (%~))
 import Control.Monad.IO.Class (liftIO)
-import Ruins.Apecs (pattern XY, mkPosition)
+import Ruins.Extra.Apecs (pattern XY, mkPosition)
 import Control.Monad (when, void)
 import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
