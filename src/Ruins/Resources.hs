@@ -69,7 +69,7 @@ withResource load free filePath = managed do
 instance ManagedResource Font.Font where
   {-# Inline manageResource #-}
   -- | The font size can be fixed because there is only two fonts
-  -- , and they have the same recommended size, which is 13.
+  -- , and both of them have the same recommended size, which is 13.
   manageResource fileName = withResource (`Font.load` 13) Font.free (fontsPath </> fileName)
 
 instance ManagedResource Mixer.Chunk where
@@ -106,6 +106,12 @@ loadAnimations = do
     in Apecs.modify Apecs.global
         (over sprites (HMap.update (Just . insertAnimations) name))
 
+-- | Load room from the given configuration file, and set Ruins.Components.Sprites.CurrentRoomTexture
+-- | to either be a solid background texture, or the result of rendering a tile map
+-- | into an empty texture. In the latter case, the CurrentRoomTexture serves as some kind of a buffer
+-- | to which we can render a tile map once, and reuse it after as much as we want, instead of
+-- | rerendering it every frame. Perhaps, it is not the best approach, and yet it saves a ton of draw calls
+-- , which in turn saves our "resources budget".
 loadRoom :: FilePath -> RSystem ()
 loadRoom roomFile = do
   rawRoom <- liftIO (BString.readFile (roomsPath </> roomFile))
@@ -137,6 +143,8 @@ loadRoom roomFile = do
                          (CInt _tileWidth, CInt _tileHeight))) 0 Nothing (Linear.V2 False False)
                  
       SDL.rendererRenderTarget renderer SDL.$= Nothing
+      MkCurrentRoomTexture previousTexture <- Apecs.get Apecs.global
+      SDL.destroyTexture previousTexture
       Apecs.set Apecs.global (MkCurrentRoomTexture targetTexture)
 
 loadResources :: RSystem ()
@@ -169,6 +177,12 @@ loadResources = do
           Apecs.modify Apecs.global
             (over resourceLens (HMap.insert (mkName resourceName) resource))
 
+{-# Inline getResource #-}
+-- | Asynchronously get the desired resource by providing a lens to the field where the
+-- | said resource is stored, and also its name.
+-- | Example usage: do
+-- |   megalovania <- getResource music (mkName "megalovania")
+-- |   Mixer.playMusic Mixer.Forever megalovania
 getResource :: Lens' Resources (ResourceMap resource) -> Name -> RSystem resource
 getResource fieldLens resourceName = do
   resources <- Apecs.get Apecs.global
@@ -177,5 +191,4 @@ getResource fieldLens resourceName = do
             errorMessage = "getResource: " <> Text.unpack (getName resourceName) <> " hasn't been found."
         maybe (fail errorMessage) pure maybeResource
 
-  -- | Perhaps I should switch to async-lifted.
   liftIO (Async.withAsync resource Async.wait)

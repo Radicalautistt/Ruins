@@ -9,12 +9,9 @@ import qualified SDL.Font as Font
 import qualified Apecs
 import qualified Linear
 import qualified Data.Vector as Vector
-import GHC.Int (Int32 (..))
 import Data.Bool (bool)
 import qualified Data.Text as Text
 import Data.Word (Word8)
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HMap
 import Foreign.C.Types (CInt (..))
 import Ruins.Extra.SDL (mkRectangle, rectPosition, rectExtent, Rect)
 import Ruins.Extra.Apecs (pattern RXY)
@@ -43,9 +40,6 @@ white = Linear.V4 255 255 255 255
 
 pink :: Colour
 pink = Linear.V4 255 204 229 0
-
-tileRects :: HashMap Int32 Rect
-tileRects = HMap.empty
 
 spriteSheetRow :: Name -> Int -> RSystem Rect
 spriteSheetRow spriteSheetName rowIndex = do
@@ -155,7 +149,7 @@ drawGame = do
   SDL.copy renderer b Nothing Nothing
   drawLevers renderer
   drawFroggits renderer
-  drawNapstablook renderer
+  -- drawNapstablook renderer
   drawFrisk renderer
   drawTextBox renderer
   SDL.present renderer

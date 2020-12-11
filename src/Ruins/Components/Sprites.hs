@@ -48,7 +48,7 @@ data TileMap = MkTileMap {
 }
 
 instance Aeson.FromJSON TileMap where
-  parseJSON = Aeson.withObject "tilemap" \ tileMap -> do
+  parseJSON = Aeson.withObject "tilemap data" \ tileMap -> do
     _sourceName <- tileMap .: "source-name"
     _sourceRectsPath <- tileMap .: "source-rects-path"
     _tileMap <- tileMap .: "tile-map"
@@ -70,14 +70,14 @@ data Animation = MkAnimation {
 }
 
 instance Aeson.FromJSON Animation where
-  parseJSON = Aeson.withObject "animation" \ object -> do
-    _animationName <- object .: "name"
-    _animationDelay <- object .: "delay"
-    _animationClips <- object .: "clips"
+  parseJSON = Aeson.withObject "animation data" \ animation -> do
+    _animationName <- animation .: "name"
+    _animationDelay <- animation .: "delay"
+    _animationClips <- animation .: "clips"
     let _currentClipIndex = 0
 
     pure MkAnimation {..}
-   
+
 data SpriteSheet = MkSpriteSheet {
      _animated :: Bool
    , _spriteSheet :: SDL.Texture

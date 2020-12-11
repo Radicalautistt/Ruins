@@ -6,6 +6,7 @@
 
 module Ruins.Components.World (
        RSystem
+  -- * components
      , Room (..)
      , Time (..)
      , Lever (..)
@@ -15,7 +16,9 @@ module Ruins.Components.World (
      , QuitGame (..)
      , Resources (..)
      , ResourceMap
+  -- * world initialization
      , initRuins
+  -- * lenses
      , sprites
      , fonts
      , sounds
@@ -60,6 +63,7 @@ newtype Time = MkTime Double
   deriving newtype Num
   deriving (Semigroup, Monoid) via Sum Double
 
+-- | One of the items that player can interact with.
 data Lever = Lever
 
 -- | The flag component, which tells the game
@@ -67,15 +71,15 @@ data Lever = Lever
 -- | Used with levers and buttons.
 newtype Pressed = MkPressed Bool
 
+-- | Room configuration.
+-- | Example config can be found at assets/rooms/debug.json
 data Room = MkRoom {
    _roomSize :: Linear.V2 CInt
  , _cameraActive :: Bool
  , _roomBackground :: Either Sprite TileMap
 }
 
-instance Semigroup Room where
-  _previous <> next = next
-
+instance Semigroup Room where _previous <> next = next
 instance Monoid Room where
   mempty = MkRoom Linear.zero False (Right (MkTileMap (mkName "") "" emptyUArray 0 0 0 0))
 
@@ -83,12 +87,14 @@ deriving anyclass instance Aeson.FromJSON element =>
   Aeson.FromJSON (Linear.V2 element)
 
 instance Aeson.FromJSON Room where
-  parseJSON = Aeson.withObject "room configuration object" \ object -> do
-    _roomSize <- object .: "room-size"
-    _cameraActive <- object .: "camera-active"
-    _roomBackground <- object .: "room-background"
+  parseJSON = Aeson.withObject "room configuration" \ room -> do
+    _roomSize <- room .: "room-size"
+    _cameraActive <- room .: "camera-active"
+    _roomBackground <- room .: "room-background"
     pure MkRoom {..}
 
+-- | Global text box component.
+-- | It is handled by the Ruins.Step.stepTextBox function.
 data TextBox = MkTextBox {
   _sprite :: Maybe Sprite
   , _opened :: Bool
@@ -122,6 +128,8 @@ instance Monoid Resources where
   mempty =
     MkResources HMap.empty HMap.empty HMap.empty HMap.empty
 
+-- | Room boundary.
+-- | Should be deprecated as soon as I implement a collision map.
 data Boundary = MkBoundary {
      xmax :: Double
    , xmin :: Double
