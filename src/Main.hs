@@ -13,7 +13,6 @@ import Ruins.EventHandler (animateIndefinitely)
 import Ruins.Draw (drawGame)
 import Ruins.Extra.SDL (initSDL, quitSDL, mkRectangle)
 import Ruins.Extra.Apecs (newEntity_, mkPosition, unitVelocity)
-import Ruins.Miscellaneous (mkName)
 import Ruins.Components.Sprites (Sprite (..))
 import Ruins.Components.World (RSystem, Time (..), Lever (..), QuitGame (..), Boundary (..),
                                Pressed (..), initRuins)
@@ -32,7 +31,7 @@ initGame = do
   newEntity_ (Napstablook, MkInFight False, APhysics.StaticBody, mkPosition 300 200)
 
   newEntity_ (Lever, MkPressed False, APhysics.StaticBody
-           , mkPosition 40 105, MkSprite (mkName "froggit", mkRectangle (0, 0) (19, 11)))
+           , mkPosition 40 105, MkSprite ("froggit", mkRectangle (0, 0) (19, 11)))
 
 gameLoop :: RSystem ()
 gameLoop = do
@@ -53,5 +52,5 @@ main = do
           Apecs.set Apecs.global renderer
           loadResources
           loadRoom "debug.json"
-          animateIndefinitely [mkName "froggit", mkName "napstablook"]
+          animateIndefinitely ["froggit", "napstablook"]
           gameLoop

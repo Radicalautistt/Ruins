@@ -1,4 +1,5 @@
 {-# Options -fno-warn-orphans #-}
+{-# Language NamedFieldPuns #-}
 {-# Language TemplateHaskell #-}
 {-# Language FlexibleInstances #-}
 {-# Language StandaloneDeriving #-}
@@ -30,8 +31,8 @@ module Ruins.Components.World (
      , voiceSound
      , visibleChunk
      , roomSize
-     , cameraActive
      , roomBackground
+     , roomCameraActive
      ) where
 
 import qualified SDL
@@ -53,7 +54,7 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Aeson ((.:))
 import qualified Data.Aeson as Aeson
 import Ruins.Extra.Apecs (ManagedSystem, makeGlobalComponent)
-import Ruins.Miscellaneous (Name, mkName, emptyUArray)
+import Ruins.Miscellaneous (Name, emptyUArray)
 import Ruins.Components.Sprites (Sprite (..), SpriteSheet (..), TileMap (..), CurrentRoomTexture (..))
 import Ruins.Components.Characters (Frisk, Froggit, Napstablook, InFight, Speed, HealthPoints, Action)
 import Control.Lens (makeLenses)
@@ -75,13 +76,13 @@ newtype Pressed = MkPressed Bool
 -- | Example config can be found at assets/rooms/debug.json
 data Room = MkRoom {
    _roomSize :: Linear.V2 CInt
- , _cameraActive :: Bool
  , _roomBackground :: Either Sprite TileMap
+ , _roomCameraActive :: Bool
 }
 
 instance Semigroup Room where _previous <> next = next
 instance Monoid Room where
-  mempty = MkRoom Linear.zero False (Right (MkTileMap (mkName "") "" emptyUArray 0 0 0 0))
+  mempty = MkRoom Linear.zero (Right (MkTileMap "" "" emptyUArray 0 0 0 0)) False
 
 deriving anyclass instance Aeson.FromJSON element =>
   Aeson.FromJSON (Linear.V2 element)
@@ -89,8 +90,8 @@ deriving anyclass instance Aeson.FromJSON element =>
 instance Aeson.FromJSON Room where
   parseJSON = Aeson.withObject "room configuration" \ room -> do
     _roomSize <- room .: "room-size"
-    _cameraActive <- room .: "camera-active"
     _roomBackground <- room .: "room-background"
+    _roomCameraActive <- room .: "camera-active"
     pure MkRoom {..}
 
 -- | Global text box component.
@@ -105,7 +106,7 @@ data TextBox = MkTextBox {
 }
 
 instance Semigroup TextBox where _previous <> next = next
-instance Monoid TextBox where mempty = MkTextBox Nothing False Text.empty 0.1 (mkName "default-voice") 1
+instance Monoid TextBox where mempty = MkTextBox Nothing False Text.empty 0.1 "default-voice" 1
 
 type ResourceMap resource = HashMap Name resource
 

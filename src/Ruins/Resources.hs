@@ -181,7 +181,7 @@ loadResources = do
 -- | Asynchronously get the desired resource by providing a lens to the field where the
 -- | said resource is stored, and also its name.
 -- | Example usage: do
--- |   megalovania <- getResource music (mkName "megalovania")
+-- |   megalovania <- getResource music "megalovania"
 -- |   Mixer.playMusic Mixer.Forever megalovania
 getResource :: Lens' Resources (ResourceMap resource) -> Name -> RSystem resource
 getResource fieldLens resourceName = do

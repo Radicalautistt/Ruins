@@ -12,6 +12,7 @@ import GHC.Int (Int32)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Aeson as Aeson
+import Data.String (IsString (..))
 import Data.Hashable (Hashable)
 import Data.Ix (Ix (..))
 import Data.Array.Unboxed (UArray)
@@ -32,6 +33,13 @@ newtype Name = MkName { getName :: Text }
 -- , making sure that extension is dropped.
 mkName :: FilePath -> Name
 mkName fileName = MkName (Text.pack (FPath.dropExtension fileName))
+
+-- | This instance gives us the ability to write "megalovania"
+-- | instead of (mkName "megalovania"), with mkName operating under the hood.
+-- | Thus, even if we were to write "zalupa-kentavra.zip"
+-- | the result would nevertheless be just "zalupa-kentavra".
+instance IsString Name where
+  fromString = mkName
 
 instance Aeson.FromJSON Name where
   parseJSON = Aeson.withText "name" \ text ->

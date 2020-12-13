@@ -22,7 +22,7 @@ import qualified Data.HashMap.Strict as HMap
 import Control.Lens (Lens', set, over, (&), (+~), (-~))
 import Control.Monad (when)
 import qualified Language.Haskell.TH as THaskell
-import Ruins.Miscellaneous (Name, mkName)
+import Ruins.Miscellaneous (Name)
 import Ruins.Components.Sprites (animated)
 import Ruins.Components.Characters (Frisk (..), Speed (..), Action (..), Froggit (..))
 import Ruins.Components.World (RSystem, opened, QuitGame (..), Lever (..), Pressed (..), sprites)
@@ -78,26 +78,26 @@ handleKeyboardState = do
     if | keyIs SDL.ScancodeUp -> do
            Apecs.set friskEntity MoveUp
            giveNegativeVelocity friskEntity Linear._y
-           animate (mkName "frisk")
+           animate "frisk"
 
        | keyIs SDL.ScancodeDown -> do
            Apecs.set friskEntity MoveDown
            givePositiveVelocity friskEntity Linear._y
-           animate (mkName "frisk")
+           animate "frisk"
 
        | keyIs SDL.ScancodeLeft -> do
            Apecs.set friskEntity MoveLeft
            giveNegativeVelocity friskEntity Linear._x
-           animate (mkName "frisk")
+           animate "frisk"
 
        | keyIs SDL.ScancodeRight -> do
            Apecs.set friskEntity MoveRight
            givePositiveVelocity friskEntity Linear._x
-           animate (mkName "frisk")
+           animate "frisk"
 
        | otherwise -> do
            dropVelocityOf friskEntity
-           stopAnimation (mkName "frisk")
+           stopAnimation "frisk"
 
 handleEvent :: SDL.EventPayload -> RSystem ()
 handleEvent = \ case
@@ -112,7 +112,7 @@ handleEvent = \ case
         if not p
            then do newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 300)
                    say "there are two types of snakes, ones that are poisonous and ones that aren't."
-                     0.09 Nothing (mkName "default-voice")
+                     0.09 Nothing "default-voice"
                 else do Apecs.cmap \ Froggit ->
                          Apecs.Not @Froggit
                         Apecs.modify Apecs.global (set opened False)

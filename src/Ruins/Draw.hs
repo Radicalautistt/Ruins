@@ -19,7 +19,7 @@ import Control.Lens (view, ix, (^.), (&~), (-=), (+=))
 import Control.Monad (when, unless)
 import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
-import Ruins.Miscellaneous (Name, mkName)
+import Ruins.Miscellaneous (Name)
 import Ruins.Components.Characters (Frisk (..), Action (..), InFight (..), Froggit (..), Napstablook (..))
 import Ruins.Components.World (RSystem, sprites,
                                Lever (..), Pressed (..), TextBox (..), fonts)
@@ -59,7 +59,7 @@ drawPart renderer spriteSheetName sourceRect targetRect = do
 
 drawLogo :: SDL.Renderer -> RSystem ()
 drawLogo renderer = do
-  logoSprite <- view spriteSheet <$> getResource sprites (mkName "logo")
+  logoSprite <- view spriteSheet <$> getResource sprites "logo"
   SDL.copy renderer logoSprite Nothing
     (Just do mkRectangle (380, 30) (600, 120))
 
@@ -69,7 +69,7 @@ drawLevers renderer = do
     let sourceX = bool 237 250 pressed
     drawPart renderer name rect
       (mkRectangle (x - 5, y - 25) (30, 20))
-    drawPart renderer (mkName "ruins-tiles") (mkRectangle (sourceX, 138) (7, 15))
+    drawPart renderer "ruins-tiles" (mkRectangle (sourceX, 138) (7, 15))
       (mkRectangle (x, y) (20, 41))
 
 drawRectangle :: SDL.Renderer -> Rect -> Colour -> Colour -> RSystem ()
@@ -92,7 +92,7 @@ drawTextBox renderer = do
   MkTextBox {..} <- Apecs.get Apecs.global
   when _opened do
     drawRectangle renderer (mkRectangle (350, 500) (700, 200)) black white
-    dialogueFont <- getResource fonts (mkName "dialogue")
+    dialogueFont <- getResource fonts "dialogue"
     tempSurface <- Font.solid dialogueFont white (Text.take _visibleChunk _currentText)
     textTexture <- SDL.createTextureFromSurface renderer tempSurface
     SDL.freeSurface tempSurface
@@ -103,17 +103,17 @@ drawTextBox renderer = do
 drawFrisk :: SDL.Renderer -> RSystem ()
 drawFrisk renderer = Apecs.cmapM_ \ (Frisk, RXY x y, action, MkInFight inFight) -> do
   if inFight
-     then drawPart renderer (mkName "frisk")
+     then drawPart renderer "frisk"
             (mkRectangle (99, 0) (16, 16))
             (mkRectangle (x, y) (20, 20))
-          else do let friskClip = spriteSheetRow (mkName "frisk")
+          else do let friskClip = spriteSheetRow "frisk"
                   moveUp <- friskClip 0
                   moveDown <- friskClip 1
                   moveLeft <- friskClip 2
                   moveRight <- friskClip 3
 
                   let targetRect = mkRectangle (x, y) friskExtent
-                      draw rect = drawPart renderer (mkName "frisk") rect targetRect
+                      draw rect = drawPart renderer "frisk" rect targetRect
 
                   case action of
                     MoveUp -> draw moveUp
@@ -123,9 +123,9 @@ drawFrisk renderer = Apecs.cmapM_ \ (Frisk, RXY x y, action, MkInFight inFight) 
 
 drawFroggits :: SDL.Renderer -> RSystem ()
 drawFroggits renderer = do
-  sourceRect <- spriteSheetRow (mkName "froggit") 0
+  sourceRect <- spriteSheetRow "froggit" 0
   Apecs.cmapM_ \ (Froggit, RXY x y) ->
-    drawPart renderer (mkName "froggit")
+    drawPart renderer "froggit"
       sourceRect
       (mkRectangle (x, y) (59, 60))
 
@@ -133,11 +133,11 @@ drawNapstablook :: SDL.Renderer -> RSystem ()
 drawNapstablook renderer =
   Apecs.cmapM_ \ (Napstablook, RXY x y, MkInFight inFight) ->
     if not inFight
-       then drawPart renderer (mkName "napstablook")
+       then drawPart renderer "napstablook"
               (mkRectangle (15, 121) (33, 17))
               (mkRectangle (x, y) (99, 51))
-            else do stareRect <- spriteSheetRow (mkName "napstablook") 0
-                    drawPart renderer (mkName "napstablook")
+            else do stareRect <- spriteSheetRow "napstablook" 0
+                    drawPart renderer "napstablook"
                       stareRect (mkRectangle (x, y) (300, 400))
 
 drawGame :: RSystem ()
