@@ -25,7 +25,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 -- | Filename without file extension.
 -- | Used mostly as a key for Ruins.Components.World.ResourceMap.
 newtype Name = MkName { getName :: Text }
-  deriving stock Eq
+  deriving stock (Show, Eq)
   deriving newtype Hashable
 
 {-# Inline mkName #-}

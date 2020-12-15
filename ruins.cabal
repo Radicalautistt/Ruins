@@ -39,6 +39,7 @@ executable ruins
                      , managed
                      , text
                      , bytestring
+                     , megaparsec
                      , filepath
                      , directory
                      , apecs
