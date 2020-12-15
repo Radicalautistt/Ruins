@@ -7,6 +7,7 @@ module Ruins.Draw (drawGame) where
 
 import qualified SDL
 import qualified SDL.Font as Font
+import Control.Monad.IO.Class
 import qualified Apecs
 import qualified Linear
 import qualified Data.Vector as Vector
@@ -145,10 +146,14 @@ drawGame = do
   MkCamera {..} <- Apecs.get Apecs.global
   SDL.clear renderer
   SDL.rendererDrawColor renderer SDL.$= black
+  MkCurrentRoomTexture t <- Apecs.get Apecs.global
   MkSpriteSheet {_spriteSheet} <- getResource sprites "backgrounds"
   SDL.TextureInfo {..} <- SDL.queryTexture _spriteSheet
-  SDL.copy renderer _spriteSheet
-    (Just do mkRectangle (round $ _cameraOffset ^. Linear._x, 249) (745, 156)) (Just do mkRectangle (0, 200) (745 * 3, 156 * 3))
+  liftIO (print _cameraOffset)
+  SDL.copy renderer t
+    (Just do mkRectangle (round $ _cameraOffset ^. Linear._x, 0) (800, 600))
+    (Just do mkRectangle (0, 200) (1500, 1300))
+
   drawLevers renderer
   drawFroggits renderer
   drawFrisk renderer

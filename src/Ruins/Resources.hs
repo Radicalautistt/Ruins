@@ -178,7 +178,7 @@ loadResources = do
             (over resourceLens (HMap.insert (mkName resourceName) resource))
 
 {-# Inline getResource #-}
--- | Asynchronously get the desired resource by providing a lens to the field where the
+-- | Asynchronously get a desired resource by providing a lens to the field where a
 -- | said resource is stored, and also its name.
 -- | Example usage: do
 -- |   megalovania <- getResource music "megalovania"

@@ -10,9 +10,9 @@ import qualified Linear
 import GHC.Int (neInt)
 import Data.Bool (bool)
 import qualified Data.Text as Text
-import Control.Lens (over, each, (&), (.~), (+~), (%~), (&~), (.=), (+=))
+import Control.Lens (over, each, (&), (^.), (.~), (+~), (%~), (&~), (.=), (+=))
 import Control.Monad.IO.Class (liftIO)
-import Ruins.Extra.Apecs (pattern XY, mkPosition)
+import Ruins.Extra.Apecs (pattern XY, mkPosition, positionVector)
 import Control.Monad (when, void)
 import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
@@ -36,6 +36,15 @@ clampFrisk = do
   boundary <- Apecs.get Apecs.global
   Apecs.cmap \ (Frisk, friskPosition) ->
     clamp friskPosition boundary
+
+clampCamera :: RSystem ()
+clampCamera = do
+  boundary <- Apecs.get Apecs.global
+  Apecs.modify Apecs.global \ camera@MkCamera{_cameraActive} ->
+    if not _cameraActive
+       then camera
+            else camera & cameraOffset %~ \ offset ->
+              clamp (APhysics.Position offset) boundary ^. positionVector
 
 {-# Inline stepNeeded #-}
 stepNeeded :: Time -> Time -> Double -> Bool
@@ -95,4 +104,5 @@ step deltaTime@(MkTime dT) = do
   stepAnimations deltaTime
   APhysics.stepPhysics dT
   stepCamera
-  clampFrisk
+  -- clampFrisk
+  clampCamera

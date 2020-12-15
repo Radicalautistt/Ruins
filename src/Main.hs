@@ -23,7 +23,7 @@ import Ruins.Components.Characters (Frisk (..), InFight (..), Napstablook (..),
 initGame :: RSystem ()
 initGame = do
   -- | Debug level boundary.
-  Apecs.set Apecs.global (MkBoundary 1305 0 510 360)
+  Apecs.set Apecs.global (MkBoundary 72 0 800 360)
 
   newEntity_ (Frisk, MoveDown, MkSpeed 300, MkInFight False
            , APhysics.KinematicBody, mkPosition 0 400, unitVelocity)
