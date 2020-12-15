@@ -27,12 +27,11 @@ import Ruins.Miscellaneous (Name)
 newtype Sprite = MkSprite (Name, Rect)
   deriving newtype Aeson.FromJSON
 
--- | This instance is probably awful, I'll try to figure out something better in the future.
 instance element ~ Int32 =>
   Aeson.FromJSON (UArray element element) where
   parseJSON = Aeson.withArray "UArray" \ array -> do
     parsedArray <- for array (Aeson.parseJSON @element)
-    pure $ Array.runSTUArray do
+    pure $! Array.runSTUArray do
       mutableArray <- Array.newListArray
         (0, fromIntegral (Vector.length parsedArray - 1)) (Vector.toList parsedArray)
       pure mutableArray

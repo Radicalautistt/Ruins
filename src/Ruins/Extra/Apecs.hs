@@ -20,6 +20,9 @@ import Control.Monad.IO.Class (MonadIO)
 import qualified Language.Haskell.TH as THaskell
 import qualified Language.Haskell.TH.Syntax as THaskell
 
+-- | A System that gives a promise of releasing all the allocated resources
+-- | once a program terminates. The Managed monad is being similar to ResourceT
+-- , albeit much more simple to use.
 type ManagedSystem world result = Apecs.SystemT world Managed result
 deriving newtype instance MonadFail m => MonadFail (Apecs.SystemT world m)
 deriving newtype instance MonadManaged m => MonadManaged (Apecs.SystemT world m)
@@ -40,7 +43,7 @@ makeGlobalComponent componentName = do
 
 {-# Inline newEntity_ #-}
 -- | Make new entity without yelding the result.
--- | TODO remove this as soon as apecs gets new release
+-- | TODO remove this as soon as apecs gets new release on hackage
 -- , since the function is already merged into the master branch.
 newEntity_ :: MonadIO m =>
               Apecs.Set world m component =>
@@ -64,6 +67,9 @@ unitPosition = mkPosition 0 0
 
 unitVelocity :: APhysics.Velocity
 unitVelocity = mkVelocity 0 0
+ 
+deriving newtype instance Num APhysics.Position
+deriving newtype instance Num APhysics.Velocity
 
 {-# Complete XY #-}
 -- | Wrapper around Position, used to clean up pattern matching.
@@ -82,10 +88,14 @@ pattern RXY :: CInt -> CInt -> APhysics.Position
 pattern RXY x y <-
   APhysics.Position (Linear.V2 (round -> x) (round -> y))
 
+{-# Inline positionVector #-}
+-- | Isomorphisms between Velocity/Position and (V2 Double).
+-- | I need them so I could easily get/set values inside Velocity/Position.
+-- | There is probably a better way to do this with Control.Lens.coerced
+-- , but I haven't figured it out just yet (at least the setting part).
+positionVector :: Iso' APhysics.Position (Linear.V2 Double)
+positionVector = iso (\ (APhysics.Position vector) -> vector) APhysics.Position
+
 {-# Inline velocityVector #-}
--- | Isomorphism between Velocity and (V2 Double).
--- | I need it so I could easily get/set values inside Velocity.
--- | There is probably a way to do the same thing with Control.Lens.coerced
--- , but I haven't figured out how yet (at least the setting part).
 velocityVector :: Iso' APhysics.Velocity (Linear.V2 Double)
 velocityVector = iso (\ (APhysics.Velocity vector) -> vector) APhysics.Velocity

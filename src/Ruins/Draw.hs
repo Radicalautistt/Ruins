@@ -1,6 +1,7 @@
 {-# Options -fno-warn-unused-top-binds #-}
 {-# Language FlexibleContexts #-}
 {-# Language ViewPatterns #-}
+{-# Language NamedFieldPuns #-}
 
 module Ruins.Draw (drawGame) where
 
@@ -15,17 +16,15 @@ import Data.Word (Word8)
 import Foreign.C.Types (CInt (..))
 import Ruins.Extra.SDL (mkRectangle, rectPosition, rectExtent, Rect)
 import Ruins.Extra.Apecs (pattern RXY)
-import Control.Lens (view, ix, (^.), (&~), (-=), (+=))
+import Control.Lens (ix, (^.), (&~), (-=), (+=))
 import Control.Monad (when, unless)
 import Unsafe.Coerce (unsafeCoerce)
 import Ruins.Resources (getResource)
 import Ruins.Miscellaneous (Name)
 import Ruins.Components.Characters (Frisk (..), Action (..), InFight (..), Froggit (..), Napstablook (..))
-import Ruins.Components.World (RSystem, sprites,
-                               Lever (..), Pressed (..), TextBox (..), fonts)
-
+import Ruins.Components.World (RSystem, sprites, Lever (..), Pressed (..), TextBox (..), Camera (..), fonts)
 import Ruins.Components.Sprites (SpriteSheet (..), Sprite (..),
-                                 CurrentRoomTexture (..), animationClips, currentClipIndex, spriteSheet)
+                                 CurrentRoomTexture (..), animationClips, currentClipIndex)
 
 type Colour = Linear.V4 Word8
 
@@ -54,13 +53,13 @@ spriteSheetRow spriteSheetName rowIndex = do
 
 drawPart :: SDL.Renderer -> Name -> Rect -> Rect -> RSystem ()
 drawPart renderer spriteSheetName sourceRect targetRect = do
-  sourceSheet <- view spriteSheet <$> getResource sprites spriteSheetName
-  SDL.copy renderer sourceSheet (Just sourceRect) (Just targetRect)
+  MkSpriteSheet {_spriteSheet} <- getResource sprites spriteSheetName
+  SDL.copy renderer _spriteSheet (Just sourceRect) (Just targetRect)
 
 drawLogo :: SDL.Renderer -> RSystem ()
 drawLogo renderer = do
-  logoSprite <- view spriteSheet <$> getResource sprites "logo"
-  SDL.copy renderer logoSprite Nothing
+  MkSpriteSheet {_spriteSheet} <- getResource sprites "logo"
+  SDL.copy renderer _spriteSheet Nothing
     (Just do mkRectangle (380, 30) (600, 120))
 
 drawLevers :: SDL.Renderer -> RSystem ()
@@ -106,11 +105,11 @@ drawFrisk renderer = Apecs.cmapM_ \ (Frisk, RXY x y, action, MkInFight inFight) 
      then drawPart renderer "frisk"
             (mkRectangle (99, 0) (16, 16))
             (mkRectangle (x, y) (20, 20))
-          else do let friskClip = spriteSheetRow "frisk"
-                  moveUp <- friskClip 0
-                  moveDown <- friskClip 1
-                  moveLeft <- friskClip 2
-                  moveRight <- friskClip 3
+          else do let friskRow = spriteSheetRow "frisk"
+                  moveUp <- friskRow 0
+                  moveDown <- friskRow 1
+                  moveLeft <- friskRow 2
+                  moveRight <- friskRow 3
 
                   let targetRect = mkRectangle (x, y) friskExtent
                       draw rect = drawPart renderer "frisk" rect targetRect
@@ -143,13 +142,15 @@ drawNapstablook renderer =
 drawGame :: RSystem ()
 drawGame = do
   renderer <- Apecs.get Apecs.global
+  MkCamera {..} <- Apecs.get Apecs.global
   SDL.clear renderer
-  SDL.rendererDrawColor renderer SDL.$= pink
-  MkCurrentRoomTexture b <- Apecs.get Apecs.global
-  SDL.copy renderer b Nothing Nothing
+  SDL.rendererDrawColor renderer SDL.$= black
+  MkSpriteSheet {_spriteSheet} <- getResource sprites "backgrounds"
+  SDL.TextureInfo {..} <- SDL.queryTexture _spriteSheet
+  SDL.copy renderer _spriteSheet
+    (Just do mkRectangle (round $ _cameraOffset ^. Linear._x, 249) (745, 156)) (Just do mkRectangle (0, 200) (745 * 3, 156 * 3))
   drawLevers renderer
   drawFroggits renderer
-  -- drawNapstablook renderer
   drawFrisk renderer
   drawTextBox renderer
   SDL.present renderer

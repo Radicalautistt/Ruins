@@ -11,6 +11,7 @@ module Ruins.Components.World (
      , Room (..)
      , Time (..)
      , Lever (..)
+     , Camera (..)
      , TextBox (..)
      , Pressed (..)
      , Boundary (..)
@@ -30,6 +31,9 @@ module Ruins.Components.World (
      , letterDelay
      , voiceSound
      , visibleChunk
+     , cameraActive
+     , cameraOffset
+     , cameraScale
      , roomSize
      , roomBackground
      , roomCameraActive
@@ -141,6 +145,19 @@ data Boundary = MkBoundary {
 instance Semigroup Boundary where _previous <> next = next
 instance Monoid Boundary where mempty = MkBoundary 0 0 0 0
 
+data Camera = MkCamera {
+  _cameraActive :: Bool
+  , _cameraScale :: Double
+  , _cameraOffset :: Linear.V2 Double
+}
+
+instance Semigroup Camera where
+  MkCamera {..} <> MkCamera active scale position  =
+    MkCamera (_cameraActive && active) (_cameraScale * scale) (_cameraOffset + position)
+
+instance Monoid Camera where
+  mempty = MkCamera False 1 Linear.zero
+
 -- | The Semigroup and Monoid instances for SDL.Window/Renderer
 -- | are needed to use them as global apecs components.
 instance Semigroup SDL.Window where _a <> b = b
@@ -155,6 +172,7 @@ newtype QuitGame = MkQuitGame Bool
 
 traverse makeGlobalComponent [
   ''Time
+  , ''Camera
   , ''TextBox
   , ''Boundary
   , ''QuitGame
@@ -174,6 +192,7 @@ Apecs.makeWorld "Ruins" [
   , ''Frisk
   , ''Lever
   , ''Speed
+  , ''Camera
   , ''Action
   , ''Sprite
   , ''TextBox
@@ -193,6 +212,7 @@ Apecs.makeWorld "Ruins" [
 
 concat <$> traverse makeLenses [
   ''Room
+  , ''Camera
   , ''TextBox
   , ''Resources
   ]

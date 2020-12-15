@@ -25,12 +25,13 @@ import qualified Language.Haskell.TH as THaskell
 import Ruins.Miscellaneous (Name)
 import Ruins.Components.Sprites (animated)
 import Ruins.Components.Characters (Frisk (..), Speed (..), Action (..), Froggit (..))
-import Ruins.Components.World (RSystem, opened, QuitGame (..), Lever (..), Pressed (..), sprites)
+import Ruins.Components.World (RSystem, opened, QuitGame (..), Lever (..), Pressed (..), cameraActive, sprites)
 
 -- | Generate pressed key patterns.
 concat <$> traverse makeKeyPressed [
   THaskell.mkName "KeycodeZ"
   , THaskell.mkName "KeycodeEscape"
+  , THaskell.mkName "KeycodeC"
   ]
 
 escapePressed :: SDL.EventPayload -> Bool
@@ -101,6 +102,7 @@ handleKeyboardState = do
 
 handleEvent :: SDL.EventPayload -> RSystem ()
 handleEvent = \ case
+  PRESSED_C -> Apecs.modify Apecs.global (over cameraActive not)
   PRESSED_Z ->
     Apecs.cmapM_ \ (Lever, APhysics.Position leverP, MkPressed p, lever) ->
       Apecs.cmapM_ \ (Frisk, APhysics.Position friskP) -> do
@@ -110,7 +112,7 @@ handleEvent = \ case
                   else MkPressed pressed
 
         if not p
-           then do newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 300)
+           then do newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 400)
                    say "there are two types of snakes, ones that are poisonous and ones that aren't."
                      0.09 Nothing "default-voice"
                 else do Apecs.cmap \ Froggit ->
@@ -121,7 +123,7 @@ handleEvent = \ case
 
 handleEvents :: RSystem ()
 handleEvents = do
-  eventPayloads <- map SDL.eventPayload <$> SDL.pollEvents
+  (map SDL.eventPayload -> eventPayloads) <- SDL.pollEvents
   let quitEvent = SDL.QuitEvent `elem` eventPayloads
                || escapePressed `any` eventPayloads
   when quitEvent do

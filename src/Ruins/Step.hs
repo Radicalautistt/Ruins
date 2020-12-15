@@ -1,13 +1,16 @@
+{-# Language NamedFieldPuns #-}
+
 module Ruins.Step (step) where
 
 import qualified SDL.Mixer as Mixer
 import qualified Apecs
 import qualified Apecs.Physics as APhysics
 import qualified Data.Vector as Vector
+import qualified Linear
 import GHC.Int (neInt)
 import Data.Bool (bool)
 import qualified Data.Text as Text
-import Control.Lens (over, each, (&), (.~), (+~), (%~))
+import Control.Lens (over, each, (&), (.~), (+~), (%~), (&~), (.=), (+=))
 import Control.Monad.IO.Class (liftIO)
 import Ruins.Extra.Apecs (pattern XY, mkPosition)
 import Control.Monad (when, void)
@@ -16,7 +19,8 @@ import Ruins.Resources (getResource)
 import Ruins.EventHandler (handleEvents, handleKeyboardState)
 import Ruins.Components.Sprites (Animation (..), SpriteSheet (..), animations, currentClipIndex)
 import Ruins.Components.Characters (Frisk (..))
-import Ruins.Components.World (RSystem, Time (..),  Boundary (..), TextBox (..), visibleChunk, sprites, sounds)
+import Ruins.Components.World (RSystem, Time (..), Boundary (..), TextBox (..), Camera (..),
+                               cameraOffset, visibleChunk, sprites, sounds)
 
 incrementTime :: Time -> RSystem ()
 incrementTime deltaTime = Apecs.modify Apecs.global \ currentTime ->
@@ -72,6 +76,15 @@ voiceTextBox deltaTime = do
     Mixer.setVolume 30 voice
     void (liftIO (Mixer.playOn (unsafeCoerce _visibleChunk) Mixer.Once voice))
 
+stepCamera :: RSystem ()
+stepCamera = Apecs.cmapM_ \ (Frisk, APhysics.Position friskPosition) ->
+  Apecs.modify Apecs.global \ camera@MkCamera {_cameraActive} ->
+    if not _cameraActive
+       then camera
+            else camera &~ do
+                   cameraOffset .= Linear.zero
+                   cameraOffset += friskPosition
+
 step :: Time -> RSystem ()
 step deltaTime@(MkTime dT) = do
   incrementTime deltaTime
@@ -81,4 +94,5 @@ step deltaTime@(MkTime dT) = do
   voiceTextBox deltaTime
   stepAnimations deltaTime
   APhysics.stepPhysics dT
+  stepCamera
   clampFrisk

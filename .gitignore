@@ -1,6 +1,7 @@
 dist
 dist-*
 cabal-dev
+*.org
 *.o
 *.hi
 *.hie
