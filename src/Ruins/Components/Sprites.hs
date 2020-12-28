@@ -25,6 +25,7 @@ import Ruins.Extra.Apecs (makeGlobalComponent)
 import Ruins.Miscellaneous (Name)
 
 newtype Sprite = MkSprite (Name, Rect)
+  deriving stock Show
   deriving newtype Aeson.FromJSON
 
 instance element ~ Int32 =>

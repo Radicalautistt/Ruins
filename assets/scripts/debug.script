@@ -1,0 +1,5 @@
+toriel
+say "the quick brown fox jumps over the lazy dog" 0.1 ("toriel-face",[5,5,31,29]) "toriel-voice"
+
+lever
+say "abc" 0.0 ("o",[1,2,3,4]) "none"

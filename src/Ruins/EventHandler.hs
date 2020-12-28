@@ -104,20 +104,19 @@ handleEvent :: SDL.EventPayload -> RSystem ()
 handleEvent = \ case
   PRESSED_C -> Apecs.modify Apecs.global (over cameraActive not)
   PRESSED_Z ->
-    Apecs.cmapM_ \ (Lever, APhysics.Position leverP, MkPressed p, lever) ->
-      Apecs.cmapM_ \ (Frisk, APhysics.Position friskP) -> do
-        Apecs.modify lever \ (MkPressed pressed) ->
+    Apecs.cmapM_ \ (Lever, APhysics.Position leverP, MkPressed pressed, lever) ->
+      Apecs.cmapM_ \ (Frisk, APhysics.Position friskP) -> do                       
+        Apecs.modify lever \ (MkPressed p) ->
           if Linear.norm (leverP - friskP) < 30
-             then MkPressed (not pressed)
-                  else MkPressed pressed
+             then MkPressed (not p)
+                  else MkPressed p
 
-        if not p
-           then do newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 400)
-                   say "there are two types of snakes, ones that are poisonous and ones that aren't."
-                     0.09 Nothing "default-voice"
-                else do Apecs.cmap \ Froggit ->
-                         Apecs.Not @Froggit
-                        Apecs.modify Apecs.global (set opened False)
+        if not pressed
+         then do newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 400)
+                 say "I have no reason to live" 0.09 Nothing "default-voice"
+              else do Apecs.cmap \ Froggit ->
+                       Apecs.Not @Froggit
+                      Apecs.modify Apecs.global (set opened False)
 
   _otherwise -> pure ()
 

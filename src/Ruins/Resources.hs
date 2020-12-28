@@ -15,7 +15,7 @@ import qualified Apecs
 import qualified Linear
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BString
-import qualified Data.Text as Text
+import qualified Data.Text.Short as SText
 import qualified Data.Array.IArray as Array
 import Foreign.C.Types (CInt (..))
 import Data.Foldable (for_)
@@ -188,7 +188,7 @@ getResource fieldLens resourceName = do
   resources <- Apecs.get Apecs.global
   let resource = do
         let maybeResource = resources ^. fieldLens & HMap.lookup resourceName
-            errorMessage = "getResource: " <> Text.unpack (getName resourceName) <> " hasn't been found."
+            errorMessage = "getResource: " <> SText.unpack (getName resourceName) <> " hasn't been found."
         maybe (fail errorMessage) pure maybeResource
 
   liftIO (Async.withAsync resource Async.wait)

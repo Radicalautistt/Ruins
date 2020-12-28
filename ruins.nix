@@ -1,7 +1,7 @@
 { mkDerivation, aeson, apecs, apecs-physics, array, async, base
 , bytestring, directory, filepath, hashable, lens, linear, managed
 , mtl, sdl2, sdl2-mixer, sdl2-ttf, stdenv, template-haskell, text
-, transformers, unordered-containers, vector, megaparsec
+, transformers, unordered-containers, vector, megaparsec, text-short
 }:
 
 mkDerivation {
@@ -14,6 +14,7 @@ mkDerivation {
     aeson apecs apecs-physics array async base bytestring directory
     filepath hashable lens linear managed mtl sdl2 sdl2-mixer sdl2-ttf
     template-haskell text transformers unordered-containers vector megaparsec
+    text-short
   ];
   homepage = "https://github.com/Radicalautistt/Ruins";
   description = "A Haskell remake of the RUINS section from Undertale.";

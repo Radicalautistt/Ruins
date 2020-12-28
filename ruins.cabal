@@ -28,6 +28,7 @@ executable ruins
                        Ruins.Extra.Apecs
 
                        Ruins.Components.World
+                       Ruins.Components.Script
                        Ruins.Components.Sprites
                        Ruins.Components.Characters
 
@@ -38,6 +39,7 @@ executable ruins
                      , async
                      , managed
                      , text
+                     , text-short
                      , bytestring
                      , megaparsec
                      , filepath

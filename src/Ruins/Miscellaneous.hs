@@ -9,7 +9,8 @@ module Ruins.Miscellaneous (
      ) where
 
 import GHC.Int (Int32)
-import Data.Text (Text)
+import Data.Text.Short (ShortText)
+import qualified Data.Text.Short as SText
 import qualified Data.Text as Text
 import qualified Data.Aeson as Aeson
 import Data.String (IsString (..))
@@ -24,7 +25,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 
 -- | Filename without file extension.
 -- | Used mostly as a key for Ruins.Components.World.ResourceMap.
-newtype Name = MkName { getName :: Text }
+newtype Name = MkName { getName :: ShortText }
   deriving stock (Show, Eq)
   deriving newtype Hashable
 
@@ -32,7 +33,7 @@ newtype Name = MkName { getName :: Text }
 -- | Smart constructor for names
 -- , making sure that extension is dropped.
 mkName :: FilePath -> Name
-mkName fileName = MkName (Text.pack (FPath.dropExtension fileName))
+mkName fileName = MkName (SText.pack (FPath.dropExtension fileName))
 
 -- | This instance gives us the ability to write "megalovania"
 -- | instead of (mkName "megalovania"), with mkName operating under the hood.

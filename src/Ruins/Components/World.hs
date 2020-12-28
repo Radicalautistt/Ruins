@@ -59,6 +59,7 @@ import Data.Aeson ((.:))
 import qualified Data.Aeson as Aeson
 import Ruins.Extra.Apecs (ManagedSystem, makeGlobalComponent)
 import Ruins.Miscellaneous (Name, emptyUArray)
+import Ruins.Components.Script (Script (..))
 import Ruins.Components.Sprites (Sprite (..), SpriteSheet (..), TileMap (..), CurrentRoomTexture (..))
 import Ruins.Components.Characters (Frisk, Froggit, Napstablook, InFight, Speed, HealthPoints, Action)
 import Control.Lens (makeLenses)
@@ -192,6 +193,7 @@ Apecs.makeWorld "Ruins" [
   , ''Frisk
   , ''Lever
   , ''Speed
+  , ''Script
   , ''Camera
   , ''Action
   , ''Sprite

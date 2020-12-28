@@ -31,7 +31,7 @@ initGame = do
   newEntity_ (Napstablook, MkInFight False, APhysics.StaticBody, mkPosition 300 200)
 
   newEntity_ (Lever, MkPressed False, APhysics.StaticBody
-           , mkPosition 40 350, MkSprite ("froggit", mkRectangle (0, 0) (19, 11)))
+           , mkPosition 40 300, MkSprite ("froggit", mkRectangle (0, 0) (19, 11)))
 
 gameLoop :: RSystem ()
 gameLoop = do

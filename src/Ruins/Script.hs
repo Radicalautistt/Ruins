@@ -1,29 +1,27 @@
-module Ruins.Script (Command (..), say, parseSayCommand) where
+module Ruins.Script (
+       say
+     , runCommand
+     , parseScripts
+     ) where
 
 import qualified Apecs
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Linear
 import Foreign.C.Types (CInt (..))
-import Data.Vector (Vector)
 import Control.Applicative ((<|>))
 import Control.Lens ((&~), (.=), (+=), (<&>))
 import Data.Void (Void)
+import qualified Data.Vector as Vector
 import qualified Text.Megaparsec as MParsec
 import qualified Text.Megaparsec.Char as MParsec
 import qualified Text.Megaparsec.Char.Lexer as MParsec
 import Ruins.Extra.SDL (mkRectangle)
 import Ruins.Extra.Apecs (positionVector)
 import Ruins.Miscellaneous (Name, mkName)
+import Ruins.Components.Script (Command (..), Script (..))
 import Ruins.Components.Sprites (Sprite (..))
 import Ruins.Components.World (RSystem, opened, currentText, sprite, voiceSound, letterDelay)
-
-data Command = Walk Double Double Apecs.Entity
-   | Say Text Double (Maybe Sprite) Name deriving stock Show
-
-newtype Script = MkScript (Vector Command)
-
-newtype Counter = MkCounter Int
 
 type CommandParser = MParsec.Parsec Void Text Command
 
@@ -33,34 +31,55 @@ parseSayCommand = do
   MParsec.string "say"
   MParsec.space1
 
-  text <-
-    quoted (MParsec.some (MParsec.alphaNumChar <|> MParsec.oneOf @[] ",.!? "))
+  text <- between '\"' '\"'
+    (MParsec.some (MParsec.alphaNumChar <|> MParsec.oneOf @[] ",.!? "))
   MParsec.space1
 
   textDelay <- MParsec.float @_ @_ @_ @Double
   MParsec.space1
 
   -- | Doesn't work if there is no sprite
-  sprite <- (Just <$> parseSprite) <|> pure Nothing
+  entityFace <- (Just <$> parseSprite) <|> pure Nothing
   MParsec.space1
 
-  name <- parseName
+  voiceName <- parseName
 
-  pure (Say (Text.pack text) textDelay sprite name)
-  where quoted = MParsec.between (MParsec.char '\"') (MParsec.char '\"')
-        parseName = mkName <$> quoted (MParsec.some MParsec.letterChar)
+  pure (Say (Text.pack text) textDelay entityFace voiceName)
+  where between start end parser = MParsec.between (MParsec.char start) (MParsec.char end) parser
+        parseName = mkName <$> between '\"' '\"' (MParsec.some (MParsec.letterChar <|> MParsec.char '-'))
         parseRect = map (read @CInt) <$>
-          MParsec.between (MParsec.char '[') (MParsec.char ']')
+          between '[' ']'
             (MParsec.sepEndBy1 (MParsec.some MParsec.digitChar) (MParsec.char ','))
           <&> \ (x : y : width : height) -> mkRectangle (x, y) (width, head height)
 
         parseSprite = MkSprite <$>
-          MParsec.between (MParsec.char '(') (MParsec.char ')')
-            ((,) <$> (parseName <* MParsec.char ',') <*> parseRect)
+          between '(' ')' ((,) <$> (parseName <* MParsec.char ',') <*> parseRect)
+
+{-# Inline parseCommand #-}
+parseCommand :: CommandParser
+parseCommand = MParsec.choice [
+  parseSayCommand
+  ]
+
+{-# Inline parseScript #-}
+parseScript :: MParsec.Parsec Void Text Script
+parseScript = do
+  _scriptOwner <-
+    mkName <$> MParsec.some (MParsec.letterChar <|> MParsec.char '-')
+  MParsec.newline
+  _scriptData <-
+    Vector.fromList <$> MParsec.sepEndBy1 parseCommand MParsec.newline
+  let _scriptCounter = Vector.length _scriptData
+  pure MkScript {..}
+
+{-# Inline parseScripts #-}
+-- | Parse the contents of a file containing scripts.
+parseScripts :: MParsec.Parsec Void Text [Script]
+parseScripts = MParsec.sepEndBy1 parseScript MParsec.newline
 
 runCommand :: Command -> RSystem ()
 runCommand = \ case
-  Walk xDistance yDistance entity ->
+  Walk _ xDistance yDistance entity ->
     Apecs.modify entity \ position ->
       position &~ do
         positionVector . Linear._x += xDistance

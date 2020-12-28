@@ -34,7 +34,7 @@ newtype Speed = MkSpeed Double
 data Action = MoveUp
    | MoveDown
    | MoveLeft
-   | MoveRight
+   | MoveRight deriving stock Show
 
 newtype HealthPoints = MkHealthPoints Double
   deriving newtype Num
