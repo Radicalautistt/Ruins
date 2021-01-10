@@ -10,61 +10,64 @@ module Ruins.EventHandler (
      ) where
 
 import qualified SDL
+import qualified SDL.Mixer as Mixer
 import SDL.Input.Keyboard.Codes
 import qualified Apecs
-import qualified Apecs.Physics as APhysics
+import qualified Apecs.Physics as Physics
 import qualified Linear
-import Ruins.Extra.Apecs (unitVelocity, velocityVector, mkPosition, newEntity_, pattern VEL)
-import Ruins.Extra.SDL (makeKeyPressed)
-import Ruins.Script (say)
 import Data.Foldable (for_)
 import qualified Data.HashMap.Strict as HMap
 import Control.Lens (Lens', set, over, (&), (+~), (-~))
 import Control.Monad (when)
-import qualified Language.Haskell.TH as THaskell
-import Ruins.Miscellaneous (Name)
-import Ruins.Components.Sprites (animated)
-import Ruins.Components.Characters (Frisk (..), Speed (..), Action (..), Froggit (..))
-import Ruins.Components.World (RSystem, opened, QuitGame (..), Lever (..), Pressed (..), cameraActive, sprites)
+import qualified Language.Haskell.TH as TH
+import qualified Ruins.Audio as Audio
+import qualified Ruins.Script as Script
+import qualified Ruins.Miscellaneous as Misc
+import qualified Ruins.Extra.SDL as ESDL
+import qualified Ruins.Extra.Apecs as EApecs
+import qualified Ruins.Components.Spawn as Spawn
+import qualified Ruins.Components.World as World
+import qualified Ruins.Components.Sprites as Sprites
+import qualified Ruins.Components.Characters as Characters
 
 -- | Generate pressed key patterns.
-concat <$> traverse makeKeyPressed [
-  THaskell.mkName "KeycodeZ"
-  , THaskell.mkName "KeycodeEscape"
-  , THaskell.mkName "KeycodeC"
+concat <$> traverse ESDL.makeKeyPressed [
+  TH.mkName "KeycodeZ"
+  , TH.mkName "KeycodeEscape"
+  , TH.mkName "KeycodeC"
+  , TH.mkName "KeycodeS"
+  , TH.mkName "KeycodeM"
+  , TH.mkName "KeycodeH"
   ]
 
-escapePressed :: SDL.EventPayload -> Bool
-escapePressed = \ case
-  PRESSED_ESCAPE -> True
-  _otherwise -> False
+givePositiveVelocity :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> World.RSystem ()
+givePositiveVelocity entity axisLens =
+  Apecs.modify entity \ (EApecs.VEL _ _, Characters.Speed speed) ->
+    EApecs.unitVelocity & EApecs.velocityVector . axisLens +~ speed
 
-givePositiveVelocity :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> RSystem ()
-givePositiveVelocity entity axisLens = Apecs.modify entity \ (VEL _ _, MkSpeed speed) ->
-  unitVelocity & velocityVector . axisLens +~ speed
+giveNegativeVelocity :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> World.RSystem ()
+giveNegativeVelocity entity axisLens =
+  Apecs.modify entity \ (EApecs.VEL _ _, Characters.Speed speed) ->
+    EApecs.unitVelocity & EApecs.velocityVector . axisLens -~ speed
 
-giveNegativeVelocity :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> RSystem ()
-giveNegativeVelocity entity axisLens = Apecs.modify entity \ (VEL _ _, MkSpeed speed) ->
-  unitVelocity & velocityVector . axisLens -~ speed
-
-dropVelocityOf :: Apecs.Entity -> RSystem ()
-dropVelocityOf entity = Apecs.modify entity \ (VEL _ _) -> unitVelocity
+dropVelocityOf :: Apecs.Entity -> World.RSystem ()
+dropVelocityOf entity = Apecs.modify entity \ (EApecs.VEL _ _) -> EApecs.unitVelocity
 
 {-# Inline toggleAnimation #-}
-toggleAnimation :: Name -> Bool -> RSystem ()
+toggleAnimation :: Misc.Name -> Bool -> World.RSystem ()
 toggleAnimation spriteSheetName enabled =
   Apecs.modify Apecs.global $
-    over sprites (HMap.update (Just . set animated enabled) spriteSheetName)
+    over World.sprites (HMap.update (Just . set Sprites.animated enabled) spriteSheetName)
 
-animate :: Name -> RSystem ()
+animate :: Misc.Name -> World.RSystem ()
 animate spriteSheetName = toggleAnimation spriteSheetName True
 
-stopAnimation :: Name -> RSystem ()
+stopAnimation :: Misc.Name -> World.RSystem ()
 stopAnimation spriteSheetName = toggleAnimation spriteSheetName False
 
 -- | Enable animations by default for the given spritesheet names.
 -- | Useful when you have some NPCs with a looping animation routine.
-animateIndefinitely :: [Name] -> RSystem ()
+animateIndefinitely :: [Misc.Name] -> World.RSystem ()
 animateIndefinitely names = for_ names animate
 
 -- | I need to handle keyboardState instead of SDL.Event
@@ -72,27 +75,27 @@ animateIndefinitely names = for_ names animate
 -- | in cases of multiple key presses simultaneously.
 -- | I've tried them but the latency was too real.
 -- | So, I've googled up this approach and were happy with it ever since.
-handleKeyboardState :: RSystem ()
+handleKeyboardState :: World.RSystem ()
 handleKeyboardState = do
   keyIs <- SDL.getKeyboardState
-  Apecs.cmapM_ \ (Frisk, friskEntity) ->
+  Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
     if | keyIs SDL.ScancodeUp -> do
-           Apecs.set friskEntity MoveUp
+           Apecs.set friskEntity Characters.MoveUp
            giveNegativeVelocity friskEntity Linear._y
            animate "frisk"
 
        | keyIs SDL.ScancodeDown -> do
-           Apecs.set friskEntity MoveDown
+           Apecs.set friskEntity Characters.MoveDown
            givePositiveVelocity friskEntity Linear._y
            animate "frisk"
 
        | keyIs SDL.ScancodeLeft -> do
-           Apecs.set friskEntity MoveLeft
+           Apecs.set friskEntity Characters.MoveLeft
            giveNegativeVelocity friskEntity Linear._x
            animate "frisk"
 
        | keyIs SDL.ScancodeRight -> do
-           Apecs.set friskEntity MoveRight
+           Apecs.set friskEntity Characters.MoveRight
            givePositiveVelocity friskEntity Linear._x
            animate "frisk"
 
@@ -100,32 +103,36 @@ handleKeyboardState = do
            dropVelocityOf friskEntity
            stopAnimation "frisk"
 
-handleEvent :: SDL.EventPayload -> RSystem ()
+handleEvent :: SDL.EventPayload -> World.RSystem ()
 handleEvent = \ case
-  PRESSED_C -> Apecs.modify Apecs.global (over cameraActive not)
+  PRESSED_C -> Apecs.modify Apecs.global (over World.cameraActive not)
+  PRESSED_S -> Audio.playSound "hurt"
+  PRESSED_M -> Audio.playMusic "megalovania-low" Mixer.Once
+  PRESSED_H -> Audio.toggleAudio
+
   PRESSED_Z ->
-    Apecs.cmapM_ \ (Lever, APhysics.Position leverP, MkPressed pressed, lever) ->
-      Apecs.cmapM_ \ (Frisk, APhysics.Position friskP) -> do                       
-        Apecs.modify lever \ (MkPressed p) ->
+    Apecs.cmapM_ \ (World.Lever, Physics.Position leverP, World.Pressed pressed, lever) ->
+      Apecs.cmapM_ \ (Characters.Frisk, Physics.Position friskP) -> do
+        Apecs.modify lever \ (World.Pressed p) ->
           if Linear.norm (leverP - friskP) < 30
-             then MkPressed (not p)
-                  else MkPressed p
+             then World.Pressed (not p)
+                  else World.Pressed p
 
         if not pressed
-         then do newEntity_ (Froggit, APhysics.StaticBody, mkPosition 300 400)
-                 say "I have no reason to live" 0.09 Nothing "default-voice"
-              else do Apecs.cmap \ Froggit ->
-                       Apecs.Not @Froggit
-                      Apecs.modify Apecs.global (set opened False)
+         then do Spawn.spawnFroggit (EApecs.mkPosition 300 400)
+                 Script.say "I have no reason to live" 0.09 Nothing "default-voice"
+              else do Apecs.cmap \ Characters.Froggit ->
+                       Apecs.Not @Characters.Froggit
+                      Apecs.modify Apecs.global (set World.opened False)
+
+  PRESSED_ESCAPE -> Apecs.set Apecs.global (World.QuitGame True)
 
   _otherwise -> pure ()
 
-handleEvents :: RSystem ()
+handleEvents :: World.RSystem ()
 handleEvents = do
   (map SDL.eventPayload -> eventPayloads) <- SDL.pollEvents
-  let quitEvent = SDL.QuitEvent `elem` eventPayloads
-               || escapePressed `any` eventPayloads
-  when quitEvent do
-    Apecs.set Apecs.global (MkQuitGame True)
+  when (SDL.QuitEvent `elem` eventPayloads) do
+    Apecs.set Apecs.global (World.QuitGame True)
 
   for_ eventPayloads handleEvent

@@ -7,6 +7,7 @@
 
 module Ruins.Components.World (
        RSystem
+     , Ruins
   -- * components
      , Room (..)
      , Time (..)
@@ -18,6 +19,8 @@ module Ruins.Components.World (
      , QuitGame (..)
      , Resources (..)
      , ResourceMap
+     , SoundMuted (..)
+     , SoundVolume (..)
   -- * world initialization
      , initRuins
   -- * lenses
@@ -46,26 +49,26 @@ import qualified SDL.Internal.Types as SDL
 import Apecs (Has (..), Storage, SystemT (..), explInit)
 import qualified Apecs
 import qualified Apecs.TH as Apecs
-import qualified Apecs.Physics as APhysics
+import qualified Apecs.Physics as Physics
 import qualified Linear
 import Foreign.Ptr (nullPtr)
 import Foreign.C.Types (CInt (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Data.Semigroup (Sum (..), Any (..))
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Aeson ((.:))
 import qualified Data.Aeson as Aeson
-import Ruins.Extra.Apecs (ManagedSystem, makeGlobalComponent)
-import Ruins.Miscellaneous (Name, emptyUArray)
-import Ruins.Components.Script (Script (..))
-import Ruins.Components.Sprites (Sprite (..), SpriteSheet (..), TileMap (..), CurrentRoomTexture (..))
-import Ruins.Components.Characters (Frisk, Froggit, Napstablook, InFight, Speed, HealthPoints, Action)
+import Data.Semigroup (Sum (..), Any (..))
 import Control.Lens (makeLenses)
 import Control.Monad.Reader (asks)
+import qualified Ruins.Extra.Apecs as EApecs
+import qualified Ruins.Miscellaneous as Misc
+import qualified Ruins.Components.Script as Script
+import qualified Ruins.Components.Sprites as Sprites
+import qualified Ruins.Components.Characters as Characters
 
-newtype Time = MkTime Double
+newtype Time = Time Double
   deriving newtype Num
   deriving (Semigroup, Monoid) via Sum Double
 
@@ -75,19 +78,19 @@ data Lever = Lever
 -- | The flag component, which tells the game
 -- | whether the associated entity was pressed/activated.
 -- | Used with levers and buttons.
-newtype Pressed = MkPressed Bool
+newtype Pressed = Pressed Bool
 
 -- | Room configuration.
 -- | Example config can be found at assets/rooms/debug.json
-data Room = MkRoom {
+data Room = Room {
    _roomSize :: Linear.V2 CInt
- , _roomBackground :: Either Sprite TileMap
+ , _roomBackground :: Either Sprites.Sprite Sprites.TileMap
  , _roomCameraActive :: Bool
 }
 
 instance Semigroup Room where _previous <> next = next
 instance Monoid Room where
-  mempty = MkRoom Linear.zero (Right (MkTileMap "" "" emptyUArray 0 0 0 0)) False
+  mempty = Room Linear.zero (Right (Sprites.TileMap "" "" Misc.emptyUArray 0 0 0 0)) False
 
 deriving anyclass instance Aeson.FromJSON element =>
   Aeson.FromJSON (Linear.V2 element)
@@ -97,34 +100,34 @@ instance Aeson.FromJSON Room where
     _roomSize <- room .: "room-size"
     _roomBackground <- room .: "room-background"
     _roomCameraActive <- room .: "camera-active"
-    pure MkRoom {..}
+    pure Room {..}
 
 -- | Global text box component.
 -- | It is handled by the Ruins.Step.stepTextBox function.
-data TextBox = MkTextBox {
-  _sprite :: Maybe Sprite
+data TextBox = TextBox {
+  _sprite :: Maybe Sprites.Sprite
   , _opened :: Bool
   , _currentText :: Text
   , _letterDelay :: Double
-  , _voiceSound :: Name
+  , _voiceSound :: Misc.Name
   , _visibleChunk :: Int
 }
 
 instance Semigroup TextBox where _previous <> next = next
-instance Monoid TextBox where mempty = MkTextBox Nothing False Text.empty 0.1 "default-voice" 1
+instance Monoid TextBox where mempty = TextBox Nothing False Text.empty 0.1 "default-voice" 1
 
-type ResourceMap resource = HashMap Name resource
+type ResourceMap resource = HashMap Misc.Name resource
 
-data Resources = MkResources {
-     _sprites :: ResourceMap SpriteSheet
+data Resources = Resources {
+     _sprites :: ResourceMap Sprites.SpriteSheet
    , _fonts :: ResourceMap Font.Font
    , _sounds :: ResourceMap Mixer.Chunk
    , _music :: ResourceMap Mixer.Music
 }
 
 instance Semigroup Resources where
-  MkResources {..} <> MkResources sp f s m =
-    MkResources
+  Resources {..} <> Resources sp f s m =
+    Resources
       (_sprites <> sp)
       (_fonts <> f)
       (_sounds <> s)
@@ -132,11 +135,11 @@ instance Semigroup Resources where
 
 instance Monoid Resources where
   mempty =
-    MkResources HMap.empty HMap.empty HMap.empty HMap.empty
+    Resources HMap.empty HMap.empty HMap.empty HMap.empty
 
 -- | Room boundary.
 -- | Should be deprecated as soon as I implement a collision map.
-data Boundary = MkBoundary {
+data Boundary = Boundary {
      xmax :: Double
    , xmin :: Double
    , ymax :: Double
@@ -144,20 +147,20 @@ data Boundary = MkBoundary {
 }
 
 instance Semigroup Boundary where _previous <> next = next
-instance Monoid Boundary where mempty = MkBoundary 0 0 0 0
+instance Monoid Boundary where mempty = Boundary 0 0 0 0
 
-data Camera = MkCamera {
+data Camera = Camera {
   _cameraActive :: Bool
   , _cameraScale :: Double
   , _cameraOffset :: Linear.V2 Double
 }
 
 instance Semigroup Camera where
-  MkCamera {..} <> MkCamera active scale position  =
-    MkCamera (_cameraActive && active) (_cameraScale * scale) (_cameraOffset + position)
+  Camera {..} <> Camera active scale position  =
+    Camera (_cameraActive && active) (_cameraScale * scale) (_cameraOffset + position)
 
 instance Monoid Camera where
-  mempty = MkCamera False 1 Linear.zero
+  mempty = Camera False 1 Linear.zero
 
 -- | The Semigroup and Monoid instances for SDL.Window/Renderer
 -- | are needed to use them as global apecs components.
@@ -167,11 +170,19 @@ instance Monoid SDL.Window where mempty = SDL.Window nullPtr
 instance Semigroup SDL.Renderer where _previous <> next = next
 instance Monoid SDL.Renderer where mempty = SDL.Renderer nullPtr
 
--- | Global flag telling the game whether it should end or not.
-newtype QuitGame = MkQuitGame Bool
+newtype SoundMuted = SoundMuted Bool
   deriving (Semigroup, Monoid) via Any
 
-traverse makeGlobalComponent [
+newtype SoundVolume = SoundVolume Mixer.Volume
+
+instance Monoid SoundVolume where mempty = SoundVolume 0
+instance Semigroup SoundVolume where _previous <> next = next
+
+-- | Global flag telling the game whether it should end or not.
+newtype QuitGame = QuitGame Bool
+  deriving (Semigroup, Monoid) via Any
+
+traverse EApecs.makeGlobalComponent [
   ''Time
   , ''Camera
   , ''TextBox
@@ -179,6 +190,8 @@ traverse makeGlobalComponent [
   , ''QuitGame
   , ''Resources
   , ''SDL.Window
+  , ''SoundMuted
+  , ''SoundVolume
   , ''SDL.Renderer
   ]
 
@@ -190,26 +203,30 @@ Apecs.makeMapComponents [
 
 Apecs.makeWorld "Ruins" [
   ''Time
-  , ''Frisk
   , ''Lever
-  , ''Speed
-  , ''Script
   , ''Camera
-  , ''Action
-  , ''Sprite
   , ''TextBox
-  , ''InFight
   , ''Pressed
-  , ''Froggit
   , ''Boundary
   , ''QuitGame
   , ''Resources
   , ''SDL.Window
-  , ''Napstablook
+  , ''SoundMuted
+  , ''SoundVolume
   , ''SDL.Renderer
-  , ''HealthPoints
-  , ''APhysics.Physics
-  , ''CurrentRoomTexture
+  , ''Script.Script
+  , ''Physics.Physics
+
+  , ''Characters.Frisk
+  , ''Characters.Speed
+  , ''Characters.Action
+  , ''Characters.InFight
+  , ''Characters.Froggit
+  , ''Characters.Napstablook
+  , ''Characters.HealthPoints
+
+  , ''Sprites.Sprite
+  , ''Sprites.Background
   ]
 
 concat <$> traverse makeLenses [
@@ -219,4 +236,4 @@ concat <$> traverse makeLenses [
   , ''Resources
   ]
 
-type RSystem result = ManagedSystem Ruins result
+type RSystem result = EApecs.ManagedSystem Ruins result

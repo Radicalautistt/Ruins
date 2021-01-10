@@ -25,7 +25,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 
 -- | Filename without file extension.
 -- | Used mostly as a key for Ruins.Components.World.ResourceMap.
-newtype Name = MkName { getName :: ShortText }
+newtype Name = Name { getName :: ShortText }
   deriving stock (Show, Eq)
   deriving newtype Hashable
 
@@ -33,7 +33,7 @@ newtype Name = MkName { getName :: ShortText }
 -- | Smart constructor for names
 -- , making sure that extension is dropped.
 mkName :: FilePath -> Name
-mkName fileName = MkName (SText.pack (FPath.dropExtension fileName))
+mkName fileName = Name (SText.pack (FPath.dropExtension fileName))
 
 -- | This instance gives us the ability to write "megalovania"
 -- | instead of (mkName "megalovania"), with mkName operating under the hood.

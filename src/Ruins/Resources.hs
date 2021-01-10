@@ -1,6 +1,7 @@
 {-# Language RankNTypes #-}
-{-# Language FlexibleContexts #-}
+{-# Language ViewPatterns #-}
 {-# Language TupleSections #-}
+{-# Language FlexibleContexts #-}
 
 module Ruins.Resources (
        loadRoom
@@ -29,13 +30,10 @@ import qualified Control.Concurrent.Async as Async
 import Control.Lens (Lens', set, view, over, (^.), (&))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
-import Ruins.Extra.SDL (Rect, mkRectangle)
-import Ruins.Miscellaneous (Name, mkName, getName)
-import Ruins.Components.Sprites (Animation, SpriteSheet (..), TileMap (..), CurrentRoomTexture (..),
-                                 spriteSheet, animations)
-
-import Ruins.Components.World (RSystem, Resources (..), Room (..),
-                               ResourceMap, sprites, fonts, sounds, music)
+import qualified Ruins.Miscellaneous as Misc
+import qualified Ruins.Extra.SDL as ESDL
+import qualified Ruins.Components.World as World
+import qualified Ruins.Components.Sprites as Sprites
 
 mkAssetPath :: FilePath -> FilePath
 mkAssetPath = (</>) "assets"
@@ -59,10 +57,10 @@ animationsPath :: FilePath
 animationsPath = mkAssetPath "animations"
 
 class ManagedResource resource where
-  manageResource :: FilePath -> RSystem resource
+  manageResource :: FilePath -> World.RSystem resource
 
 {-# Inline withResource #-}
-withResource :: (FilePath -> IO resource) -> (resource -> IO ()) -> FilePath -> RSystem resource
+withResource :: (FilePath -> IO resource) -> (resource -> IO ()) -> FilePath -> World.RSystem resource
 withResource load free filePath = managed do
   bracket (Async.withAsync (load filePath) Async.wait) free
 
@@ -93,41 +91,43 @@ instance ManagedResource SDL.Texture where
 
     withResource loadTexture SDL.destroyTexture filePath
 
-loadAnimations :: RSystem ()
+loadAnimations :: World.RSystem ()
 loadAnimations = do
   animationFiles <- liftIO (Vector.fromList <$> listDirectory animationsPath)
   results <- liftIO $ Async.forConcurrently animationFiles \ fileName -> do
                fileContents <- BString.readFile (animationsPath </> fileName)
-               either fail (pure . (mkName fileName, ))
-                 (Aeson.eitherDecodeStrict' @(Vector Animation) fileContents)
+               either fail (pure . (Misc.mkName fileName, ))
+                 (Aeson.eitherDecodeStrict' @(Vector Sprites.Animation) fileContents)
 
   for_ results \ (name, animationVector) ->
-    let insertAnimations = set animations animationVector
+    let insertAnimations = set Sprites.animations animationVector
     in Apecs.modify Apecs.global
-        (over sprites (HMap.update (Just . insertAnimations) name))
+        (over World.sprites (HMap.update (Just . insertAnimations) name))
 
--- | Load room from the given configuration file, and set Ruins.Components.Sprites.CurrentRoomTexture
+-- | Load room from the given configuration file, and set Ruins.Components.Sprites.Background
 -- | to either be a solid background texture, or the result of rendering a tile map
--- | into an empty texture. In the latter case, the CurrentRoomTexture serves as some kind of a buffer
+-- | into an empty texture. In the latter case, the Background serves as some kind of a buffer
 -- | to which we can render a tile map once, and reuse it after as much as we want, instead of
 -- | rerendering it every frame. Perhaps, it is not the best approach, and yet it saves a ton of draw calls
 -- , which in turn saves our "resources budget".
-loadRoom :: FilePath -> RSystem ()
+loadRoom :: FilePath -> World.RSystem ()
 loadRoom roomFile = do
   rawRoom <- liftIO (BString.readFile (roomsPath </> roomFile))
-  MkRoom {..} <-
-    either fail pure (Aeson.eitherDecodeStrict' @Room rawRoom)
+  World.Room {..} <-
+    either fail pure (Aeson.eitherDecodeStrict' @World.Room rawRoom)
 
   renderer <- Apecs.get Apecs.global
   case _roomBackground of
     Left _backgroundName -> pure ()
 
-    Right MkTileMap {..} -> do
+    Right Sprites.TileMap {..} -> do
       rawRects <- liftIO (BString.readFile _sourceRectsPath)
       sourceRects <-
-        either fail pure (Aeson.eitherDecodeStrict' @(Vector Rect) rawRects)
+        either fail pure (Aeson.eitherDecodeStrict' @(Vector ESDL.Rect) rawRects)
 
-      sourceTexture <- view spriteSheet <$> getResource sprites _sourceName
+      (view Sprites.spriteSheet -> sourceTexture) <-
+        getResource World.sprites _sourceName
+       
       targetTexture <- SDL.createTexture renderer
         SDL.RGB888 SDL.TextureAccessTarget _roomSize
 
@@ -139,15 +139,15 @@ loadRoom roomFile = do
             tile -> case sourceRects Vector.! (fromIntegral tile - 1) of
               tileRect ->
                 SDL.copyEx renderer sourceTexture (Just tileRect)
-                  (Just (mkRectangle (CInt (columnIndex * _tileWidth), CInt (rowIndex * _tileHeight))
+                  (Just (ESDL.mkRectangle (CInt (columnIndex * _tileWidth), CInt (rowIndex * _tileHeight))
                          (CInt _tileWidth, CInt _tileHeight))) 0 Nothing (Linear.V2 False False)
                  
       SDL.rendererRenderTarget renderer SDL.$= Nothing
-      MkCurrentRoomTexture previousTexture <- Apecs.get Apecs.global
-      SDL.destroyTexture previousTexture
-      Apecs.set Apecs.global (MkCurrentRoomTexture targetTexture)
+      Sprites.Background previousBackground <- Apecs.get Apecs.global
+      SDL.destroyTexture previousBackground
+      Apecs.set Apecs.global (Sprites.Background targetTexture)
 
-loadResources :: RSystem ()
+loadResources :: World.RSystem ()
 loadResources = do
   -- | Doesn't work if there is an inner directory
   -- | instead of a file. But this will do for the time being.
@@ -157,25 +157,25 @@ loadResources = do
   musicFiles <- contentsOf musicPath
 
   for_ spriteFiles insertSprite
-  for_ fontFiles (insertResource fonts)
-  for_ soundFiles (insertResource sounds)
-  for_ musicFiles (insertResource music)
+  for_ fontFiles (insertResource World.fonts)
+  for_ soundFiles (insertResource World.sounds)
+  for_ musicFiles (insertResource World.music)
 
   loadAnimations
 
   where contentsOf = liftIO . listDirectory
         insertSprite spriteName = do
           texture <- manageResource spriteName
-          let sprite = MkSpriteSheet False texture Vector.empty
+          let sprite = Sprites.SpriteSheet False texture Vector.empty
           Apecs.modify Apecs.global
-            (over sprites (HMap.insert (mkName spriteName) sprite))
+            (over World.sprites (HMap.insert (Misc.mkName spriteName) sprite))
 
         -- | Eww, code duplication...
         insertResource resourceLens resourceName = do
           resource <- manageResource resourceName
          
           Apecs.modify Apecs.global
-            (over resourceLens (HMap.insert (mkName resourceName) resource))
+            (over resourceLens (HMap.insert (Misc.mkName resourceName) resource))
 
 {-# Inline getResource #-}
 -- | Asynchronously get a desired resource by providing a lens to the field where a
@@ -183,12 +183,12 @@ loadResources = do
 -- | Example usage: do
 -- |   megalovania <- getResource music "megalovania"
 -- |   Mixer.playMusic Mixer.Forever megalovania
-getResource :: Lens' Resources (ResourceMap resource) -> Name -> RSystem resource
+getResource :: Lens' World.Resources (World.ResourceMap resource) -> Misc.Name -> World.RSystem resource
 getResource fieldLens resourceName = do
   resources <- Apecs.get Apecs.global
   let resource = do
         let maybeResource = resources ^. fieldLens & HMap.lookup resourceName
-            errorMessage = "getResource: " <> SText.unpack (getName resourceName) <> " hasn't been found."
+            errorMessage = "getResource: " <> SText.unpack (Misc.getName resourceName) <> " hasn't been found."
         maybe (fail errorMessage) pure maybeResource
 
   liftIO (Async.withAsync resource Async.wait)

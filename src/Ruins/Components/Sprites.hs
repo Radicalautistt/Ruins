@@ -20,11 +20,11 @@ import Data.Vector (Vector)
 import qualified Data.Vector as Vector
 import Data.Traversable (for)
 import Control.Lens (makeLenses)
-import Ruins.Extra.SDL (Rect)
-import Ruins.Extra.Apecs (makeGlobalComponent)
-import Ruins.Miscellaneous (Name)
+import qualified Ruins.Extra.SDL as ESDL
+import qualified Ruins.Extra.Apecs as EApecs
+import qualified Ruins.Miscellaneous as Misc
 
-newtype Sprite = MkSprite (Name, Rect)
+newtype Sprite = Sprite (Misc.Name, ESDL.Rect)
   deriving stock Show
   deriving newtype Aeson.FromJSON
 
@@ -37,8 +37,8 @@ instance element ~ Int32 =>
         (0, fromIntegral (Vector.length parsedArray - 1)) (Vector.toList parsedArray)
       pure mutableArray
 
-data TileMap = MkTileMap {
-  _sourceName :: Name
+data TileMap = TileMap {
+  _sourceName :: Misc.Name
   , _sourceRectsPath :: FilePath
   , _tileMap :: UArray Int32 Int32
   , _tileWidth :: Int32
@@ -56,16 +56,16 @@ instance Aeson.FromJSON TileMap where
     _tileHeight <- tileMap .: "tile-height"
     _tileMapWidth <- tileMap .: "tile-map-width"
     _tileMapHeight <- tileMap .: "tile-map-height"
-    pure MkTileMap {..}
+    pure TileMap {..}
 
-newtype CurrentRoomTexture = MkCurrentRoomTexture (SDL.Texture)
-instance Semigroup CurrentRoomTexture where _previous <> next = next
-instance Monoid CurrentRoomTexture where mempty = MkCurrentRoomTexture (unsafeCoerce nullPtr)
+newtype Background = Background (SDL.Texture)
+instance Semigroup Background where _previous <> next = next
+instance Monoid Background where mempty = Background (unsafeCoerce nullPtr)
 
-data Animation = MkAnimation {
+data Animation = Animation {
      _animationName :: Text
    , _animationDelay :: Double
-   , _animationClips :: Vector Rect
+   , _animationClips :: Vector ESDL.Rect
    , _currentClipIndex :: Int
 }
 
@@ -76,16 +76,16 @@ instance Aeson.FromJSON Animation where
     _animationClips <- animation .: "clips"
     let _currentClipIndex = 0
 
-    pure MkAnimation {..}
+    pure Animation {..}
 
-data SpriteSheet = MkSpriteSheet {
+data SpriteSheet = SpriteSheet {
      _animated :: Bool
    , _spriteSheet :: SDL.Texture
    , _animations :: Vector Animation
 }
 
-traverse makeGlobalComponent [
-  ''CurrentRoomTexture
+traverse EApecs.makeGlobalComponent [
+  ''Background
   ]
 
 concat <$> traverse makeLenses [

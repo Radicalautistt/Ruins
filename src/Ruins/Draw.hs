@@ -12,143 +12,136 @@ import qualified Linear
 import qualified Data.Vector as Vector
 import Data.Bool (bool)
 import qualified Data.Text as Text
-import Data.Word (Word8)
 import Foreign.C.Types (CInt (..))
-import Ruins.Extra.SDL (mkRectangle, rectPosition, rectExtent, Rect)
-import Ruins.Extra.Apecs (pattern RXY)
 import Control.Lens (ix, (^.), (&~), (-=), (+=))
 import Control.Monad (when, unless)
-import Unsafe.Coerce (unsafeCoerce)
-import Ruins.Resources (getResource)
-import Ruins.Miscellaneous (Name)
-import Ruins.Components.Characters (Frisk (..), Action (..), InFight (..), Froggit (..), Napstablook (..))
-import Ruins.Components.World (RSystem, sprites, Lever (..), Pressed (..), TextBox (..), Camera (..), fonts)
-import Ruins.Components.Sprites (SpriteSheet (..), Sprite (..),
-                                 CurrentRoomTexture (..), animationClips, currentClipIndex)
-
-type Colour = Linear.V4 Word8
+import qualified Ruins.Resources as Resources
+import qualified Ruins.Miscellaneous as Misc
+import qualified Ruins.Extra.SDL as ESDL
+import qualified Ruins.Extra.Apecs as EApecs
+import qualified Ruins.Components.World as World
+import qualified Ruins.Components.Sprites as Sprites
+import qualified Ruins.Components.Characters as Characters
 
 friskExtent :: (CInt, CInt)
 friskExtent = (60, 92)
 
-black :: Colour
+black :: ESDL.Color
 black = Linear.V4 0 0 0 0
 
-white :: Colour
-white = Linear.V4 255 255 255 255
+white :: ESDL.Color
+white = Linear.V4 255 255 255 0
 
-pink :: Colour
+pink :: ESDL.Color
 pink = Linear.V4 255 204 229 0
 
-spriteSheetRow :: Name -> Int -> RSystem Rect
+spriteSheetRow :: Misc.Name -> Int -> World.RSystem ESDL.Rect
 spriteSheetRow spriteSheetName rowIndex = do
-  MkSpriteSheet {..} <- getResource sprites spriteSheetName
-  let clips = _animations ^. ix rowIndex . animationClips
-      currentClip = _animations Vector.! rowIndex ^. currentClipIndex
+  Sprites.SpriteSheet {..} <- Resources.getResource World.sprites spriteSheetName
+  let clips = _animations ^. ix rowIndex . Sprites.animationClips
+      currentClip = _animations Vector.! rowIndex ^. Sprites.currentClipIndex
       defaultRectangle = clips Vector.! 0
       maybeRectangle = clips Vector.!? currentClip
   if _animated
      then maybe (pure defaultRectangle) pure maybeRectangle
           else pure defaultRectangle
 
-drawPart :: SDL.Renderer -> Name -> Rect -> Rect -> RSystem ()
+drawPart :: SDL.Renderer -> Misc.Name -> ESDL.Rect -> ESDL.Rect -> World.RSystem ()
 drawPart renderer spriteSheetName sourceRect targetRect = do
-  MkSpriteSheet {_spriteSheet} <- getResource sprites spriteSheetName
+  Sprites.SpriteSheet {_spriteSheet} <- Resources.getResource World.sprites spriteSheetName
   SDL.copy renderer _spriteSheet (Just sourceRect) (Just targetRect)
 
-drawLogo :: SDL.Renderer -> RSystem ()
+drawLogo :: SDL.Renderer -> World.RSystem ()
 drawLogo renderer = do
-  MkSpriteSheet {_spriteSheet} <- getResource sprites "logo"
+  Sprites.SpriteSheet {_spriteSheet} <- Resources.getResource World.sprites "logo"
   SDL.copy renderer _spriteSheet Nothing
-    (Just do mkRectangle (380, 30) (600, 120))
+    (Just do ESDL.mkRectangle (380, 30) (600, 120))
 
-drawLevers :: SDL.Renderer -> RSystem ()
-drawLevers renderer = do
-  Apecs.cmapM_ \ (Lever, MkPressed pressed, RXY x y, MkSprite (name, rect)) -> do
+drawLevers :: SDL.Renderer -> World.RSystem ()
+drawLevers renderer =
+  Apecs.cmapM_ \ (World.Lever, World.Pressed pressed, EApecs.RXY x y) -> do
     let sourceX = bool 237 250 pressed
-    drawPart renderer name rect
-      (mkRectangle (x - 5, y - 25) (30, 20))
-    drawPart renderer "ruins-tiles" (mkRectangle (sourceX, 138) (7, 15))
-      (mkRectangle (x, y) (20, 41))
+    drawPart renderer "ruins-tiles" (ESDL.mkRectangle (sourceX, 138) (7, 15))
+      (ESDL.mkRectangle (x, y) (20, 41))
 
-drawRectangle :: SDL.Renderer -> Rect -> Colour -> Colour -> RSystem ()
+drawRectangle :: SDL.Renderer -> ESDL.Rect -> ESDL.Color -> ESDL.Color -> World.RSystem ()
 drawRectangle renderer rectangle foreground background = do
   SDL.rendererDrawColor renderer SDL.$= background
   renderer `SDL.fillRect` Just rectangle
   let innerRectangle = rectangle &~ do
-        rectExtent Linear._x -= 20
-        rectExtent Linear._y -= 20
+        ESDL.rectExtent Linear._x -= 20
+        ESDL.rectExtent Linear._y -= 20
 
-        rectPosition Linear._x += 10
-        rectPosition Linear._y += 10
+        ESDL.rectPosition Linear._x += 10
+        ESDL.rectPosition Linear._y += 10
 
   unless (foreground == background) do
     SDL.rendererDrawColor renderer SDL.$= foreground
     renderer `SDL.fillRect` Just innerRectangle
 
-drawTextBox :: SDL.Renderer -> RSystem ()
+drawTextBox :: SDL.Renderer -> World.RSystem ()
 drawTextBox renderer = do
-  MkTextBox {..} <- Apecs.get Apecs.global
+  World.TextBox {..} <- Apecs.get Apecs.global
   when _opened do
-    drawRectangle renderer (mkRectangle (350, 500) (700, 200)) black white
-    dialogueFont <- getResource fonts "dialogue"
+    drawRectangle renderer (ESDL.mkRectangle (350, 500) (700, 200)) black white
+    dialogueFont <- Resources.getResource World.fonts "dialogue"
     tempSurface <- Font.solid dialogueFont white (Text.take _visibleChunk _currentText)
     textTexture <- SDL.createTextureFromSurface renderer tempSurface
     SDL.freeSurface tempSurface
-    let textWidth = unsafeCoerce (_visibleChunk * 13)
-    SDL.copy renderer textTexture Nothing (Just do mkRectangle (370, 520) (textWidth, 50))
+    let textWidth = fromIntegral (_visibleChunk * 13)
+    SDL.copy renderer textTexture Nothing (Just do ESDL.mkRectangle (370, 520) (textWidth, 50))
     SDL.destroyTexture textTexture
 
-drawFrisk :: SDL.Renderer -> RSystem ()
-drawFrisk renderer = Apecs.cmapM_ \ (Frisk, RXY x y, action, MkInFight inFight) -> do
+drawFrisk :: SDL.Renderer -> World.RSystem ()
+drawFrisk renderer = Apecs.cmapM_ \ (Characters.Frisk, EApecs.RXY x y, action, Characters.InFight inFight) -> do
   if inFight
      then drawPart renderer "frisk"
-            (mkRectangle (99, 0) (16, 16))
-            (mkRectangle (x, y) (20, 20))
+            (ESDL.mkRectangle (99, 0) (16, 16))
+            (ESDL.mkRectangle (x, y) (20, 20))
           else do let friskRow = spriteSheetRow "frisk"
                   moveUp <- friskRow 0
                   moveDown <- friskRow 1
                   moveLeft <- friskRow 2
                   moveRight <- friskRow 3
 
-                  let targetRect = mkRectangle (x, y) friskExtent
+                  let targetRect = ESDL.mkRectangle (x, y) friskExtent
                       draw rect = drawPart renderer "frisk" rect targetRect
 
                   case action of
-                    MoveUp -> draw moveUp
-                    MoveDown -> draw moveDown
-                    MoveLeft -> draw moveLeft
-                    MoveRight -> draw moveRight
+                    Characters.MoveUp -> draw moveUp
+                    Characters.MoveDown -> draw moveDown
+                    Characters.MoveLeft -> draw moveLeft
+                    Characters.MoveRight -> draw moveRight
 
-drawFroggits :: SDL.Renderer -> RSystem ()
+drawFroggits :: SDL.Renderer -> World.RSystem ()
 drawFroggits renderer = do
   sourceRect <- spriteSheetRow "froggit" 0
-  Apecs.cmapM_ \ (Froggit, RXY x y) ->
+  Apecs.cmapM_ \ (Characters.Froggit, EApecs.RXY x y) ->
     drawPart renderer "froggit"
       sourceRect
-      (mkRectangle (x, y) (59, 60))
+      (ESDL.mkRectangle (x, y) (59, 60))
 
-drawNapstablook :: SDL.Renderer -> RSystem ()
+drawNapstablook :: SDL.Renderer -> World.RSystem ()
 drawNapstablook renderer =
-  Apecs.cmapM_ \ (Napstablook, RXY x y, MkInFight inFight) ->
+  Apecs.cmapM_ \ (Characters.Napstablook, EApecs.RXY x y, Characters.InFight inFight) ->
     if not inFight
        then drawPart renderer "napstablook"
-              (mkRectangle (15, 121) (33, 17))
-              (mkRectangle (x, y) (99, 51))
+              (ESDL.mkRectangle (15, 121) (33, 17))
+              (ESDL.mkRectangle (x, y) (99, 51))
             else do stareRect <- spriteSheetRow "napstablook" 0
                     drawPart renderer "napstablook"
-                      stareRect (mkRectangle (x, y) (300, 400))
+                      stareRect (ESDL.mkRectangle (x, y) (300, 400))
 
-drawGame :: RSystem ()
+drawGame :: World.RSystem ()
 drawGame = do
   renderer <- Apecs.get Apecs.global
-  MkCamera {..} <- Apecs.get Apecs.global
+  World.Camera {..} <- Apecs.get Apecs.global
   SDL.clear renderer
   SDL.rendererDrawColor renderer SDL.$= black
-  MkCurrentRoomTexture t <- Apecs.get Apecs.global
+  Sprites.Background t <- Apecs.get Apecs.global
   SDL.copy renderer t
-    (Just do mkRectangle (round $ _cameraOffset ^. Linear._x, 0) (800, 600))
-    (Just do mkRectangle (0, 200) (1500, 1300))
+    (Just do ESDL.mkRectangle (round $ _cameraOffset ^. Linear._x, 0) (800, 600))
+    (Just do ESDL.mkRectangle (0, 200) (1500, 1300))
 
   drawLevers renderer
   drawFroggits renderer

@@ -11,6 +11,7 @@ module Ruins.Extra.SDL (
        initSDL
      , quitSDL
      , Rect
+     , Color
      , mkRectangle
      -- * lenses
      , rectExtent
@@ -28,13 +29,16 @@ import GHC.Generics (Generic)
 import qualified Data.Aeson as Aeson
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Word (Word8)
 import Foreign.C.Types (CInt (..))
 import Control.Exception (bracket)
 import Control.Lens (Lens', lens, set, over, ix, (&~), (%=), (^.))
 import Data.Text.Lens (packed)
 import Control.Monad.Managed (Managed, managed)
-import qualified Language.Haskell.TH as THaskell
-import qualified Language.Haskell.TH.Syntax as THaskell
+import qualified Language.Haskell.TH as TH
+import qualified Language.Haskell.TH.Syntax as TH
+
+type Color = Linear.V4 Word8
 
 type Rect = SDL.Rectangle CInt
 
@@ -71,8 +75,11 @@ withWindow windowName windowConfig = managed do
   bracket (SDL.createWindow windowName windowConfig) SDL.destroyWindow
 
 withRenderer :: SDL.Window -> SDL.RendererConfig -> Managed SDL.Renderer
-withRenderer window rendererConfig = managed do
-  bracket (SDL.createRenderer window (-1) rendererConfig) SDL.destroyRenderer
+withRenderer window config = managed do
+  bracket (SDL.createRenderer window (-1) config) SDL.destroyRenderer
+
+rendererConfig :: SDL.RendererConfig
+rendererConfig = SDL.RendererConfig SDL.AcceleratedVSyncRenderer True
 
 initSDL :: Managed (SDL.Window, SDL.Renderer)
 initSDL = do
@@ -81,10 +88,7 @@ initSDL = do
   Mixer.openAudio Mixer.defaultAudio 256
  
   window <- withWindow "Ruins" SDL.defaultWindow
-  renderer <- withRenderer window SDL.defaultRenderer {
-    SDL.rendererType = SDL.AcceleratedVSyncRenderer
-    , SDL.rendererTargetTexture = True
-  }
+  renderer <- withRenderer window rendererConfig
 
   pure (window, renderer)
 
@@ -103,17 +107,17 @@ keyPressed key keyboardData =
 -- | Generate pattern of the form:
 -- | pattern PRESSED_KEYNAME :: SDL.EventPayload
 -- | pattern PRESSED_KEYNAME <- SDL.KeyboardEvent (keyPressed KeycodeKeyName -> True)
-makeKeyPressed :: THaskell.Name -> THaskell.DecsQ
+makeKeyPressed :: TH.Name -> TH.DecsQ
 makeKeyPressed keyName = do
-  let patternName = THaskell.mkName name
+  let patternName = TH.mkName name
   patternType <- [t| SDL.EventPayload |]
-  patternBody <- [p| SDL.KeyboardEvent (keyPressed $(THaskell.conE keyName) -> True) |]
+  patternBody <- [p| SDL.KeyboardEvent (keyPressed $(TH.conE keyName) -> True) |]
 
-  pure [ THaskell.PragmaD (THaskell.CompleteP [patternName] Nothing)
-       , THaskell.PatSynSigD patternName patternType
-       , THaskell.PatSynD patternName (THaskell.PrefixPatSyn []) THaskell.Unidir patternBody
+  pure [ TH.PragmaD (TH.CompleteP [patternName] Nothing)
+       , TH.PatSynSigD patternName patternType
+       , TH.PatSynD patternName (TH.PrefixPatSyn []) TH.Unidir patternBody
        ]
    
-  where name = THaskell.showName keyName &~ do
+  where name = TH.showName keyName &~ do
                  packed %= Text.replace "Keycode" "PRESSED_"
                  packed %= Text.intercalate "_" . over (ix 1) Text.toUpper . Text.splitOn "_"

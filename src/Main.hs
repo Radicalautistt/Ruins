@@ -3,54 +3,47 @@
 module Main where
 
 import qualified Apecs
-import qualified Apecs.Physics as APhysics
 import qualified Data.Text.IO as Text
 import Control.Monad (unless)
 import Control.Monad.Managed (with, runManaged)
-import Ruins.Resources (loadResources, loadRoom)
-import Ruins.Step (step)
-import Ruins.EventHandler (animateIndefinitely)
-import Ruins.Draw (drawGame)
-import Ruins.Extra.SDL (initSDL, quitSDL, mkRectangle)
-import Ruins.Extra.Apecs (newEntity_, mkPosition, unitVelocity)
-import Ruins.Components.Sprites (Sprite (..))
-import Ruins.Components.World (RSystem, Time (..), Lever (..), QuitGame (..), Boundary (..),
-                               Pressed (..), initRuins)
+import qualified Ruins.Step as Step
+import qualified Ruins.Draw as Draw
+import qualified Ruins.Audio as Audio
+import qualified Ruins.Resources as Resources
+import qualified Ruins.EventHandler as EventHandler
+import qualified Ruins.Extra.SDL as ESDL
+import qualified Ruins.Extra.Apecs as EApecs
+import qualified Ruins.Components.Spawn as Spawn
+import qualified Ruins.Components.World as World
+import qualified Ruins.Components.Characters as Characters
 
-import Ruins.Components.Characters (Frisk (..), InFight (..), Napstablook (..),
-                                    Action (..), Speed (..))
-
-initGame :: RSystem ()
+initGame :: World.RSystem ()
 initGame = do
   -- | Debug level boundary.
-  Apecs.set Apecs.global (MkBoundary 72 0 800 360)
+  Apecs.set Apecs.global (World.Boundary 72 0 800 360)
+  Audio.setAudioVolume 30
 
-  newEntity_ (Frisk, MoveDown, MkSpeed 300, MkInFight False
-           , APhysics.KinematicBody, mkPosition 0 400, unitVelocity)
+  Spawn.spawnFrisk (EApecs.mkPosition 0 400) False Characters.MoveDown
+  Spawn.spawnLever (EApecs.mkPosition 40 300)
 
-  newEntity_ (Napstablook, MkInFight False, APhysics.StaticBody, mkPosition 300 200)
-
-  newEntity_ (Lever, MkPressed False, APhysics.StaticBody
-           , mkPosition 40 300, MkSprite ("froggit", mkRectangle (0, 0) (19, 11)))
-
-gameLoop :: RSystem ()
+gameLoop :: World.RSystem ()
 gameLoop = do
-  MkQuitGame quitGame <- Apecs.get Apecs.global
-  step (MkTime (1 / 60))
-  drawGame
+  World.QuitGame quitGame <- Apecs.get Apecs.global
+  Step.step (World.Time (1 / 60))
+  Draw.drawGame
   unless quitGame do gameLoop
 
 main :: IO ()
 main = do
-  world <- initRuins
-  with initSDL do runManaged . Apecs.runWith world . gameRoutine
+  world <- World.initRuins
+  with ESDL.initSDL do runManaged . Apecs.runWith world . gameRoutine
   Text.putStrLn "Farewell"
-  quitSDL
+  ESDL.quitSDL
   where gameRoutine (window, renderer) = do
           initGame
           Apecs.set Apecs.global window
           Apecs.set Apecs.global renderer
-          loadResources
-          loadRoom "debug.json"
-          animateIndefinitely ["froggit", "napstablook"]
+          Resources.loadResources
+          Resources.loadRoom "debug.json"
+          EventHandler.animateIndefinitely ["froggit", "napstablook"]
           gameLoop

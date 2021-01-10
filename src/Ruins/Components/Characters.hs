@@ -22,13 +22,13 @@ instance Apecs.Component Napstablook where
 -- | For example, in normal game Frisk are rendered as
 -- | a humanoid character, while in fight scenes they are
 -- | rendered as a heart.
-newtype InFight = MkInFight Bool
+newtype InFight = InFight Bool
 
 -- | One of the npc's/enemies
 -- | that Frisk would encounter in Ruins.
 data Froggit = Froggit
 
-newtype Speed = MkSpeed Double
+newtype Speed = Speed Double
   deriving newtype Num
 
 data Action = MoveUp
@@ -36,7 +36,7 @@ data Action = MoveUp
    | MoveLeft
    | MoveRight deriving stock Show
 
-newtype HealthPoints = MkHealthPoints Double
+newtype HealthPoints = HealthPoints Double
   deriving newtype Num
 
 Apecs.makeMapComponents [

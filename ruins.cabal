@@ -19,6 +19,7 @@ executable ruins
   other-modules:       Paths_ruins
                        Ruins.Draw
                        Ruins.Step
+                       Ruins.Audio
                        Ruins.Script
                        Ruins.Resources
                        Ruins.EventHandler
@@ -27,6 +28,7 @@ executable ruins
                        Ruins.Extra.SDL
                        Ruins.Extra.Apecs
 
+                       Ruins.Components.Spawn
                        Ruins.Components.World
                        Ruins.Components.Script
                        Ruins.Components.Sprites

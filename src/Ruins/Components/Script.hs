@@ -13,14 +13,14 @@ import qualified Apecs
 import Data.Text (Text)
 import Data.Vector (Vector)
 import Control.Lens (makeLenses)
-import Ruins.Miscellaneous (Name)
-import Ruins.Components.Characters (Action (..))
-import Ruins.Components.Sprites (Sprite (..))
+import qualified Ruins.Miscellaneous as Misc
+import qualified Ruins.Components.Sprites as Sprites
+import qualified Ruins.Components.Characters as Characters
 
-data Command = Walk Action Double Double Apecs.Entity
-   | Say Text Double (Maybe Sprite) Name deriving stock Show
+data Command = Walk Characters.Action Double Double Apecs.Entity
+   | Say Text Double (Maybe Sprites.Sprite) Misc.Name deriving stock Show
 
-data Script = MkScript {
+data Script = Script {
   _scriptCounter :: Int
   -- ^ Current position in a command vector
   , _scriptData :: Vector Command
