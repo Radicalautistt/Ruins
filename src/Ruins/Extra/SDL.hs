@@ -1,4 +1,5 @@
 {-# Options -fno-warn-orphans #-}
+{-# Language CPP #-}
 {-# Language RankNTypes #-}
 {-# Language ViewPatterns #-}
 {-# Language TemplateHaskell #-}
@@ -31,12 +32,16 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Word (Word8)
 import Foreign.C.Types (CInt (..))
+import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 import Control.Exception (bracket)
 import Control.Lens (Lens', lens, set, over, ix, (&~), (%=), (^.))
 import Data.Text.Lens (packed)
-import Control.Monad.Managed (Managed, managed)
+import Control.Monad.Managed (MonadManaged, managed)
 import qualified Language.Haskell.TH as TH
 import qualified Language.Haskell.TH.Syntax as TH
+
+#define __JOYSTICK
 
 type Color = Linear.V4 Word8
 
@@ -70,27 +75,50 @@ rectExtent axisLens = lens getter setter
         setter (SDL.Rectangle position extent) newExtentValue =
           SDL.Rectangle position (set axisLens newExtentValue extent)
 
-withWindow :: Text -> SDL.WindowConfig -> Managed SDL.Window
+withWindow :: MonadManaged m => Text -> SDL.WindowConfig -> m SDL.Window
 withWindow windowName windowConfig = managed do
   bracket (SDL.createWindow windowName windowConfig) SDL.destroyWindow
 
-withRenderer :: SDL.Window -> SDL.RendererConfig -> Managed SDL.Renderer
+withRenderer :: MonadManaged m => SDL.Window -> SDL.RendererConfig -> m SDL.Renderer
 withRenderer window config = managed do
   bracket (SDL.createRenderer window (-1) config) SDL.destroyRenderer
 
 rendererConfig :: SDL.RendererConfig
 rendererConfig = SDL.RendererConfig SDL.AcceleratedVSyncRenderer True
 
-initSDL :: Managed (SDL.Window, SDL.Renderer)
+withJoystick :: MonadManaged m => Vector SDL.JoystickDevice -> m SDL.Joystick
+withJoystick availableJoysticks = managed do
+  bracket openJoystick SDL.closeJoystick
+  where firstJoystick = availableJoysticks Vector.! 0
+        firstJoystickName = SDL.joystickDeviceName firstJoystick
+        openJoystick
+          | Text.isInfixOf "Xbox" firstJoystickName =
+              SDL.openJoystick firstJoystick
+
+          | otherwise = fail $ unwords [
+              "The"
+              , Text.unpack firstJoystickName
+              , " was given, while Xbox controller was expected"
+              ]
+
+initSDL :: MonadManaged m => m (SDL.Window, SDL.Renderer)
 initSDL = do
-  SDL.initialize [SDL.InitVideo, SDL.InitEvents, SDL.InitAudio]
+#ifdef __JOYSTICK
+  SDL.initialize (initFlags `Vector.snoc` SDL.InitJoystick)
+#else
+  SDL.initialize initFlags
+#endif
   Font.initialize
   Mixer.openAudio Mixer.defaultAudio 256
- 
+
+#ifdef __JOYSTICK
+  withJoystick =<< SDL.availableJoysticks
+#endif
   window <- withWindow "Ruins" SDL.defaultWindow
   renderer <- withRenderer window rendererConfig
 
   pure (window, renderer)
+  where initFlags = Vector.fromList [SDL.InitVideo, SDL.InitEvents, SDL.InitAudio]
 
 quitSDL :: IO ()
 quitSDL = do
@@ -104,6 +132,13 @@ keyPressed key keyboardData =
   SDL.keyboardEventKeyMotion keyboardData == SDL.Pressed
   && SDL.keysymKeycode (SDL.keyboardEventKeysym keyboardData) == key
 
+makeCompleteUniPattern :: TH.Name -> TH.Type -> TH.Pat -> TH.DecsQ
+makeCompleteUniPattern patternName patternType patternBody =
+  pure [ TH.PragmaD (TH.CompleteP [patternName] Nothing)
+       , TH.PatSynSigD patternName patternType
+       , TH.PatSynD patternName (TH.PrefixPatSyn []) TH.Unidir patternBody
+       ]
+
 -- | Generate pattern of the form:
 -- | pattern PRESSED_KEYNAME :: SDL.EventPayload
 -- | pattern PRESSED_KEYNAME <- SDL.KeyboardEvent (keyPressed KeycodeKeyName -> True)
@@ -113,11 +148,7 @@ makeKeyPressed keyName = do
   patternType <- [t| SDL.EventPayload |]
   patternBody <- [p| SDL.KeyboardEvent (keyPressed $(TH.conE keyName) -> True) |]
 
-  pure [ TH.PragmaD (TH.CompleteP [patternName] Nothing)
-       , TH.PatSynSigD patternName patternType
-       , TH.PatSynD patternName (TH.PrefixPatSyn []) TH.Unidir patternBody
-       ]
-   
+  makeCompleteUniPattern patternName patternType patternBody
   where name = TH.showName keyName &~ do
                  packed %= Text.replace "Keycode" "PRESSED_"
                  packed %= Text.intercalate "_" . over (ix 1) Text.toUpper . Text.splitOn "_"

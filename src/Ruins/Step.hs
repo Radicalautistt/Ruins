@@ -1,3 +1,4 @@
+{-# Language CPP #-}
 {-# Language NamedFieldPuns #-}
 
 module Ruins.Step (step) where
@@ -20,6 +21,8 @@ import qualified Ruins.Components.World as World
 import qualified Ruins.Components.Sprites as Sprites
 import qualified Ruins.Components.Characters as Characters
 
+#define __JOYSTICK
+
 incrementTime :: World.Time -> World.RSystem ()
 incrementTime deltaTime =
   Apecs.modify Apecs.global \ currentTime ->
@@ -30,11 +33,11 @@ clamp :: APhysics.Position -> World.Boundary -> APhysics.Position
 clamp (EApecs.XY x y) World.Boundary {..} =
   EApecs.mkPosition (min xmax (max xmin x)) (min ymax (max ymin y))
 
-clampFrisk :: World.RSystem ()
-clampFrisk = do
-  boundary <- Apecs.get Apecs.global
-  Apecs.cmap \ (Characters.Frisk, friskPosition) ->
-    clamp friskPosition boundary
+-- clampFrisk :: World.RSystem ()
+-- clampFrisk = do
+--   boundary <- Apecs.get Apecs.global
+--   Apecs.cmap \ (Characters.Frisk, friskPosition) ->
+--     clamp friskPosition boundary
 
 clampCamera :: World.RSystem ()
 clampCamera = do
@@ -97,7 +100,9 @@ step :: World.Time -> World.RSystem ()
 step deltaTime@(World.Time dT) = do
   incrementTime deltaTime
   EventHandler.handleEvents
+#ifndef __JOYSTICK
   EventHandler.handleKeyboardState
+#endif
   stepTextBox deltaTime
   voiceTextBox deltaTime
   stepAnimations deltaTime

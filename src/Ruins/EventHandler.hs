@@ -1,7 +1,6 @@
 {-# Language MultiWayIf #-}
 {-# Language RankNTypes #-}
 {-# Language ViewPatterns #-}
-{-# Language TemplateHaskell #-}
 
 module Ruins.EventHandler (
        handleEvents
@@ -11,7 +10,6 @@ module Ruins.EventHandler (
 
 import qualified SDL
 import qualified SDL.Mixer as Mixer
-import SDL.Input.Keyboard.Codes
 import qualified Apecs
 import qualified Apecs.Physics as Physics
 import qualified Linear
@@ -19,26 +17,15 @@ import Data.Foldable (for_)
 import qualified Data.HashMap.Strict as HMap
 import Control.Lens (Lens', set, over, (&), (+~), (-~))
 import Control.Monad (when)
-import qualified Language.Haskell.TH as TH
+import qualified Ruins.Keys as Keys
 import qualified Ruins.Audio as Audio
 import qualified Ruins.Script as Script
 import qualified Ruins.Miscellaneous as Misc
-import qualified Ruins.Extra.SDL as ESDL
 import qualified Ruins.Extra.Apecs as EApecs
 import qualified Ruins.Components.Spawn as Spawn
 import qualified Ruins.Components.World as World
 import qualified Ruins.Components.Sprites as Sprites
 import qualified Ruins.Components.Characters as Characters
-
--- | Generate pressed key patterns.
-concat <$> traverse ESDL.makeKeyPressed [
-  TH.mkName "KeycodeZ"
-  , TH.mkName "KeycodeEscape"
-  , TH.mkName "KeycodeC"
-  , TH.mkName "KeycodeS"
-  , TH.mkName "KeycodeM"
-  , TH.mkName "KeycodeH"
-  ]
 
 givePositiveVelocity :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> World.RSystem ()
 givePositiveVelocity entity axisLens =
@@ -70,47 +57,50 @@ stopAnimation spriteSheetName = toggleAnimation spriteSheetName False
 animateIndefinitely :: [Misc.Name] -> World.RSystem ()
 animateIndefinitely names = for_ names animate
 
--- | I need to handle keyboardState instead of SDL.Event
--- | for Frisk's movement because events aren't really responsive
--- | in cases of multiple key presses simultaneously.
--- | I've tried them but the latency was too real.
--- | So, I've googled up this approach and were happy with it ever since.
+move :: Apecs.Entity -> Characters.Action -> Misc.Name -> World.RSystem ()
+move entity direction animationName = do
+  Apecs.set entity direction
+  setVelocityValue
+  animate animationName
+  where setVelocityValue =
+          case direction of
+            Characters.MoveUp ->
+              giveNegativeVelocity entity Linear._y
+
+            Characters.MoveDown ->
+              givePositiveVelocity entity Linear._y
+
+            Characters.MoveLeft ->
+              giveNegativeVelocity entity Linear._x
+
+            Characters.MoveRight ->
+              givePositiveVelocity entity Linear._x
+
+stop :: Apecs.Entity -> Misc.Name -> World.RSystem ()
+stop entity animationName = do
+  dropVelocityOf entity
+  stopAnimation animationName
+
 handleKeyboardState :: World.RSystem ()
 handleKeyboardState = do
   keyIs <- SDL.getKeyboardState
-  Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
-    if | keyIs SDL.ScancodeUp -> do
-           Apecs.set friskEntity Characters.MoveUp
-           giveNegativeVelocity friskEntity Linear._y
-           animate "frisk"
+  Apecs.cmapM_ \ (Characters.Frisk, friskEntity) -> do
+    let moveFrisk direction = move friskEntity direction "frisk"
 
-       | keyIs SDL.ScancodeDown -> do
-           Apecs.set friskEntity Characters.MoveDown
-           givePositiveVelocity friskEntity Linear._y
-           animate "frisk"
-
-       | keyIs SDL.ScancodeLeft -> do
-           Apecs.set friskEntity Characters.MoveLeft
-           giveNegativeVelocity friskEntity Linear._x
-           animate "frisk"
-
-       | keyIs SDL.ScancodeRight -> do
-           Apecs.set friskEntity Characters.MoveRight
-           givePositiveVelocity friskEntity Linear._x
-           animate "frisk"
-
-       | otherwise -> do
-           dropVelocityOf friskEntity
-           stopAnimation "frisk"
+    if | keyIs SDL.ScancodeUp -> moveFrisk Characters.MoveUp
+       | keyIs SDL.ScancodeDown -> moveFrisk Characters.MoveDown
+       | keyIs SDL.ScancodeLeft -> moveFrisk Characters.MoveLeft
+       | keyIs SDL.ScancodeRight -> moveFrisk Characters.MoveRight
+       | otherwise -> stop friskEntity "frisk"
 
 handleEvent :: SDL.EventPayload -> World.RSystem ()
 handleEvent = \ case
-  PRESSED_C -> Apecs.modify Apecs.global (over World.cameraActive not)
-  PRESSED_S -> Audio.playSound "hurt"
-  PRESSED_M -> Audio.playMusic "megalovania-low" Mixer.Once
-  PRESSED_H -> Audio.toggleAudio
+  Keys.PRESSED_C -> Apecs.modify Apecs.global (over World.cameraActive not)
+  Keys.PRESSED_S -> Audio.playSound "hurt"
+  Keys.PRESSED_M -> Audio.playMusic "megalovania-low" Mixer.Once
+  Keys.PRESSED_H -> Audio.toggleAudio
 
-  PRESSED_Z ->
+  Keys.PRESSED_Z ->
     Apecs.cmapM_ \ (World.Lever, Physics.Position leverP, World.Pressed pressed, lever) ->
       Apecs.cmapM_ \ (Characters.Frisk, Physics.Position friskP) -> do
         Apecs.modify lever \ (World.Pressed p) ->
@@ -125,9 +115,18 @@ handleEvent = \ case
                        Apecs.Not @Characters.Froggit
                       Apecs.modify Apecs.global (set World.opened False)
 
-  PRESSED_ESCAPE -> Apecs.set Apecs.global (World.QuitGame True)
+  Keys.PRESSED_ESCAPE -> Apecs.set Apecs.global (World.QuitGame True)
+
+  Keys.JOYSTICK_UP -> moveFrisk Characters.MoveUp
+  Keys.JOYSTICK_DOWN -> moveFrisk Characters.MoveDown
+  Keys.JOYSTICK_LEFT -> moveFrisk Characters.MoveLeft
+  Keys.JOYSTICK_RIGHT -> moveFrisk Characters.MoveRight
+  Keys.JOYSTICK_CENTERED -> Apecs.cmapM \ (Characters.Frisk, friskEntity) ->
+    stop friskEntity "frisk"
 
   _otherwise -> pure ()
+  where moveFrisk direction = Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
+          move friskEntity direction "frisk"
 
 handleEvents :: World.RSystem ()
 handleEvents = do

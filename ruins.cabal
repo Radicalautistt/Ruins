@@ -19,6 +19,7 @@ executable ruins
   other-modules:       Paths_ruins
                        Ruins.Draw
                        Ruins.Step
+                       Ruins.Keys
                        Ruins.Audio
                        Ruins.Script
                        Ruins.Resources
