@@ -54,6 +54,7 @@ executable ruins
                      , OpenGL
                      , sdl2
                      , sdl2-ttf
+                     , sdl2-image
                      , sdl2-mixer
                      , template-haskell
                      , aeson
