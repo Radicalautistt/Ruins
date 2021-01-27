@@ -26,6 +26,7 @@ executable ruins
                        Ruins.EventHandler
                        Ruins.Miscellaneous
 
+                       Ruins.Extra.GL
                        Ruins.Extra.SDL
                        Ruins.Extra.Apecs
 
@@ -50,6 +51,7 @@ executable ruins
                      , apecs
                      , apecs-physics
                      , linear
+                     , OpenGL
                      , sdl2
                      , sdl2-ttf
                      , sdl2-mixer
