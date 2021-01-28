@@ -20,7 +20,7 @@ import qualified Ruins.Components.Characters as Characters
 initGame :: World.RSystem ()
 initGame = do
   -- | Debug level boundary.
-  Apecs.set Apecs.global (World.Boundary 72 0 800 360)
+  Apecs.global Apecs.$= World.Boundary 72 0 800 360
   Audio.setAudioVolume 30
 
   Spawn.spawnFrisk (EApecs.mkPosition 0 400) False Characters.MoveDown
@@ -41,9 +41,9 @@ main = do
   ESDL.quitSDL
   where gameRoutine (window, renderer) = do
           initGame
-          Apecs.set Apecs.global window
-          Apecs.set Apecs.global renderer
+          Apecs.global Apecs.$= window
+          Apecs.global Apecs.$= renderer
           Resources.loadResources
-          Resources.loadRoom "debug.json"
+          Resources.loadRoom "home-entrance.json"
           EventHandler.animateIndefinitely ["froggit", "napstablook"]
           gameLoop

@@ -24,9 +24,16 @@ import qualified Ruins.Extra.SDL as ESDL
 import qualified Ruins.Extra.Apecs as EApecs
 import qualified Ruins.Miscellaneous as Misc
 
-newtype Sprite = Sprite (Misc.Name, ESDL.Rect)
-  deriving stock Show
-  deriving newtype Aeson.FromJSON
+data Sprite = Sprite {
+  _spriteSheetName :: Misc.Name
+  , _spriteRectangle :: ESDL.Rect
+} deriving stock Show
+
+instance Aeson.FromJSON Sprite where
+  parseJSON = Aeson.withObject "sprite" \ sprite -> do
+    _spriteSheetName <- sprite .: "spritesheet-name"
+    _spriteRectangle <- sprite .: "sprite-rectangle"
+    pure Sprite {..}
 
 instance element ~ Int32 =>
   Aeson.FromJSON (UArray element element) where
@@ -58,9 +65,13 @@ instance Aeson.FromJSON TileMap where
     _tileMapHeight <- tileMap .: "tile-map-height"
     pure TileMap {..}
 
-newtype Background = Background (SDL.Texture)
+data Background = Background {
+  _backgroundTexture :: SDL.Texture
+  , _backgroundRectangle :: ESDL.Rect
+}
+
 instance Semigroup Background where _previous <> next = next
-instance Monoid Background where mempty = Background (unsafeCoerce nullPtr)
+instance Monoid Background where mempty = Background (unsafeCoerce nullPtr) (ESDL.mkRectangle (0, 0) (0, 0))
 
 data Animation = Animation {
      _animationName :: Text
@@ -89,8 +100,10 @@ traverse EApecs.makeGlobalComponent [
   ]
 
 concat <$> traverse makeLenses [
-  ''TileMap
+  ''Sprite
+  , ''TileMap
   , ''Animation
+  , ''Background
   , ''SpriteSheet
   ]
 

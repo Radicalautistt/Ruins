@@ -138,10 +138,10 @@ drawGame = do
   World.Camera {..} <- Apecs.get Apecs.global
   SDL.clear renderer
   SDL.rendererDrawColor renderer SDL.$= black
-  Sprites.Background t <- Apecs.get Apecs.global
-  SDL.copy renderer t
+  Sprites.Background {..} <- Apecs.get Apecs.global
+  SDL.copy renderer _backgroundTexture
     (Just do ESDL.mkRectangle (round $ _cameraOffset ^. Linear._x, 0) (800, 600))
-    (Just do ESDL.mkRectangle (0, 200) (1500, 1300))
+    (Just _backgroundRectangle)
 
   drawLevers renderer
   drawFroggits renderer

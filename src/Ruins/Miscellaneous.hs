@@ -5,10 +5,12 @@ module Ruins.Miscellaneous (
      , mkName
      , getName
      , afor_
+     , decodeJSON
      , emptyUArray
      ) where
 
 import GHC.Int (Int32)
+import Data.ByteString (ByteString)
 import Data.Text.Short (ShortText)
 import qualified Data.Text.Short as SText
 import qualified Data.Text as Text
@@ -46,6 +48,10 @@ instance Aeson.FromJSON Name where
   parseJSON = Aeson.withText "name" \ text ->
     -- | NOTE: this is dumb
     pure (mkName (Text.unpack text))
+
+decodeJSON :: forall result m. (MonadFail m, Aeson.FromJSON result) => ByteString -> m result
+decodeJSON rawInput = either fail pure
+  (Aeson.eitherDecodeStrict' @result rawInput)
 
 emptyUArray :: (Num value, Ix value, IArray UArray value) => UArray value value
 emptyUArray = IArray.listArray (0, 0) []

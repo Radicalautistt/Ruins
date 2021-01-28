@@ -39,21 +39,21 @@ parseSayCommand = do
   MParsec.space1
 
   -- | Doesn't work if there is no sprite
-  entityFace <- (Just <$> parseSprite) <|> pure Nothing
+  -- entityFace <- (Just <$> parseSprite) <|> pure Nothing
   MParsec.space1
 
   voiceName <- parseName
 
-  pure (Script.Say (Text.pack text) textDelay entityFace voiceName)
+  pure (Script.Say (Text.pack text) textDelay undefined voiceName)
   where between start end parser = MParsec.between (MParsec.char start) (MParsec.char end) parser
         parseName = Misc.mkName <$> between '\"' '\"' (MParsec.some (MParsec.letterChar <|> MParsec.char '-'))
-        parseRect = map (read @CInt) <$>
-          between '[' ']'
-            (MParsec.sepEndBy1 (MParsec.some MParsec.digitChar) (MParsec.char ','))
-          <&> \ (x : y : width : height) -> ESDL.mkRectangle (x, y) (width, head height)
+        -- parseRect = map (read @CInt) <$>
+        --   between '[' ']'
+        --     (MParsec.sepEndBy1 (MParsec.some MParsec.digitChar) (MParsec.char ','))
+        --   <&> \ (x : y : width : height) -> ESDL.mkRectangle (x, y) (width, head height)
 
-        parseSprite = Sprites.Sprite <$>
-          between '(' ')' ((,) <$> (parseName <* MParsec.char ',') <*> parseRect)
+        -- parseSprite = Sprites.Sprite <$>
+        --   between '(' ')' ((,) <$> (parseName <* MParsec.char ',') <*> parseRect)
 
 {-# Inline parseCommand #-}
 parseCommand :: CommandParser

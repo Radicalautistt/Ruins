@@ -40,6 +40,7 @@ module Ruins.Components.World (
      , roomSize
      , roomBackground
      , roomCameraActive
+     , roomBackgroundRectangle
      ) where
 
 import qualified SDL
@@ -62,6 +63,7 @@ import qualified Data.Aeson as Aeson
 import Data.Semigroup (Sum (..), Any (..))
 import Control.Lens (makeLenses)
 import Control.Monad.Reader (asks)
+import qualified Ruins.Extra.SDL as ESDL
 import qualified Ruins.Extra.Apecs as EApecs
 import qualified Ruins.Miscellaneous as Misc
 import qualified Ruins.Components.Script as Script
@@ -86,11 +88,12 @@ data Room = Room {
    _roomSize :: Linear.V2 CInt
  , _roomBackground :: Either Sprites.Sprite Sprites.TileMap
  , _roomCameraActive :: Bool
+ , _roomBackgroundRectangle :: ESDL.Rect
 }
 
 instance Semigroup Room where _previous <> next = next
 instance Monoid Room where
-  mempty = Room Linear.zero (Right (Sprites.TileMap "" "" Misc.emptyUArray 0 0 0 0)) False
+  mempty = Room Linear.zero (Right (Sprites.TileMap "" "" Misc.emptyUArray 0 0 0 0)) False (ESDL.mkRectangle (0, 0) (0, 0))
 
 deriving anyclass instance Aeson.FromJSON element =>
   Aeson.FromJSON (Linear.V2 element)
@@ -98,8 +101,9 @@ deriving anyclass instance Aeson.FromJSON element =>
 instance Aeson.FromJSON Room where
   parseJSON = Aeson.withObject "room configuration" \ room -> do
     _roomSize <- room .: "room-size"
-    _roomBackground <- room .: "room-background"
+    _roomBackground <- room .: "background"
     _roomCameraActive <- room .: "camera-active"
+    _roomBackgroundRectangle <- room .: "background-rectangle"
     pure Room {..}
 
 -- | Global text box component.

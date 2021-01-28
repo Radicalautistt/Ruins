@@ -13,7 +13,6 @@ import qualified SDL
 import qualified SDL.Font as Font
 import qualified SDL.Mixer as Mixer
 import qualified Apecs
-import qualified Linear
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BString
 import qualified Data.Text.Short as SText
@@ -113,39 +112,51 @@ loadAnimations = do
 loadRoom :: FilePath -> World.RSystem ()
 loadRoom roomFile = do
   rawRoom <- liftIO (BString.readFile (roomsPath </> roomFile))
-  World.Room {..} <-
-    either fail pure (Aeson.eitherDecodeStrict' @World.Room rawRoom)
+  World.Room {..} <- Misc.decodeJSON @World.Room rawRoom
 
   renderer <- Apecs.get Apecs.global
+  -- | Some backgrounds in Undertale are plain images, thus we needle to handle them properly.
   case _roomBackground of
-    Left _backgroundName -> pure ()
-
-    Right Sprites.TileMap {..} -> do
-      rawRects <- liftIO (BString.readFile _sourceRectsPath)
-      sourceRects <-
-        either fail pure (Aeson.eitherDecodeStrict' @(Vector ESDL.Rect) rawRects)
-
-      (view Sprites.spriteSheet -> sourceTexture) <-
-        getResource World.sprites _sourceName
-       
-      targetTexture <- SDL.createTexture renderer
+    Left Sprites.Sprite {..} -> do
+      (view Sprites.spriteSheet -> source) <-
+        getResource World.sprites _spriteSheetName
+      target <- SDL.createTexture renderer
         SDL.RGB888 SDL.TextureAccessTarget _roomSize
 
-      SDL.rendererRenderTarget renderer SDL.$= Just targetTexture
+      SDL.rendererRenderTarget renderer SDL.$= Just target
+      ESDL.copyTexture source renderer (Just _spriteRectangle) Nothing
 
-      for_ [0.. _tileMapHeight - 1] \ rowIndex ->
-        for_ [0.. _tileMapWidth - 1] \ columnIndex ->
-          case _tileMap Array.! (rowIndex * _tileMapWidth + columnIndex) of
+      SDL.rendererRenderTarget renderer SDL.$= Nothing
+      Sprites.Background {..} <- Apecs.get Apecs.global
+      SDL.destroyTexture _backgroundTexture
+      Apecs.global Apecs.$= Sprites.Background target _roomBackgroundRectangle
+
+    -- | While others are made of tiles.
+    Right Sprites.TileMap {..} -> do
+      sourceRects <-
+        Misc.decodeJSON @(Vector ESDL.Rect) =<< liftIO (BString.readFile _sourceRectsPath)
+
+      (view Sprites.spriteSheet -> source) <-
+        getResource World.sprites _sourceName
+       
+      target <- SDL.createTexture renderer
+        SDL.RGB888 SDL.TextureAccessTarget _roomSize
+
+      SDL.rendererRenderTarget renderer SDL.$= Just target
+
+      for_ [0.. _tileMapHeight - 1] \ row ->
+        for_ [0.. _tileMapWidth - 1] \ column ->
+          case _tileMap Array.! (row * _tileMapWidth + column) of
             tile -> case sourceRects Vector.! (fromIntegral tile - 1) of
               tileRect ->
-                SDL.copyEx renderer sourceTexture (Just tileRect)
-                  (Just (ESDL.mkRectangle (CInt (columnIndex * _tileWidth), CInt (rowIndex * _tileHeight))
-                         (CInt _tileWidth, CInt _tileHeight))) 0 Nothing (Linear.V2 False False)
+                ESDL.copyTexture source renderer (Just tileRect)
+                  (Just (ESDL.mkRectangle (CInt (column * _tileWidth),
+                                           CInt (row * _tileHeight)) (CInt _tileWidth, CInt _tileHeight)))
                  
       SDL.rendererRenderTarget renderer SDL.$= Nothing
-      Sprites.Background previousBackground <- Apecs.get Apecs.global
-      SDL.destroyTexture previousBackground
-      Apecs.set Apecs.global (Sprites.Background targetTexture)
+      Sprites.Background {..} <- Apecs.get Apecs.global
+      SDL.destroyTexture _backgroundTexture
+      Apecs.global Apecs.$= Sprites.Background target _roomBackgroundRectangle
 
 loadResources :: World.RSystem ()
 loadResources = do

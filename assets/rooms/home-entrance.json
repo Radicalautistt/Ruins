@@ -1,0 +1,11 @@
+{
+    "room-size": [320, 240],
+    "camera-active": false,
+    "background": {
+        "Left": {
+            "spritesheet-name": "backgrounds",
+            "sprite-rectangle": [334, 1, 320, 240]
+        }
+    },
+    "background-rectangle": [200, 10, 960, 760]
+}

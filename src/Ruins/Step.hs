@@ -21,7 +21,7 @@ import qualified Ruins.Components.World as World
 import qualified Ruins.Components.Sprites as Sprites
 import qualified Ruins.Components.Characters as Characters
 
-#define __JOYSTICK
+-- #define __JOYSTICK
 
 incrementTime :: World.Time -> World.RSystem ()
 incrementTime deltaTime =

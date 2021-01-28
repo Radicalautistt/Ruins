@@ -14,6 +14,7 @@ module Ruins.Extra.SDL (
      , Rect
      , Color
      , mkRectangle
+     , copyTexture
      -- * lenses
      , rectExtent
      , rectPosition
@@ -37,11 +38,12 @@ import qualified Data.Vector as Vector
 import Control.Exception (bracket)
 import Control.Lens (Lens', lens, set, over, ix, (&~), (%=), (^.))
 import Data.Text.Lens (packed)
+import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Managed (MonadManaged, managed)
 import qualified Language.Haskell.TH as TH
 import qualified Language.Haskell.TH.Syntax as TH
 
-#define __JOYSTICK
+-- #define __JOYSTICK
 
 type Color = Linear.V4 Word8
 
@@ -100,6 +102,11 @@ withJoystick availableJoysticks = managed do
               , Text.unpack firstJoystickName
               , " was given, while Xbox controller was expected"
               ]
+
+-- | Copy source texture without rotation or flipping.
+copyTexture :: MonadIO m => SDL.Texture -> SDL.Renderer -> Maybe Rect -> Maybe Rect -> m ()
+copyTexture source target sourceRect targetRect =
+  SDL.copyEx target source sourceRect targetRect 0 Nothing (Linear.V2 False False)
 
 initSDL :: MonadManaged m => m (SDL.Window, SDL.Renderer)
 initSDL = do

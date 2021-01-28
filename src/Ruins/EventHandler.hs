@@ -1,6 +1,7 @@
 {-# Language MultiWayIf #-}
 {-# Language RankNTypes #-}
 {-# Language ViewPatterns #-}
+{-# Language FlexibleContexts #-}
 
 module Ruins.EventHandler (
        handleEvents
@@ -26,6 +27,9 @@ import qualified Ruins.Components.Spawn as Spawn
 import qualified Ruins.Components.World as World
 import qualified Ruins.Components.Sprites as Sprites
 import qualified Ruins.Components.Characters as Characters
+
+defaultSpeed :: Characters.Speed
+defaultSpeed = Characters.Speed 400
 
 givePositiveVelocity :: Apecs.Entity -> Lens' (Linear.V2 Double) Double -> World.RSystem ()
 givePositiveVelocity entity axisLens =
@@ -96,7 +100,8 @@ handleKeyboardState = do
 handleEvent :: SDL.EventPayload -> World.RSystem ()
 handleEvent = \ case
   Keys.PRESSED_C -> Apecs.modify Apecs.global (over World.cameraActive not)
-  Keys.PRESSED_S -> Audio.playSound "hurt"
+  Keys.PRESSED_S -> setFriskSpeed (defaultSpeed * 2)
+  Keys.PRESSED_D -> setFriskSpeed defaultSpeed
   Keys.PRESSED_M -> Audio.playMusic "megalovania-low" Mixer.Once
   Keys.PRESSED_H -> Audio.toggleAudio
 
@@ -127,6 +132,8 @@ handleEvent = \ case
   _otherwise -> pure ()
   where moveFrisk direction = Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
           move friskEntity direction "frisk"
+        setFriskSpeed speed = Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
+          friskEntity Apecs.$= speed
 
 handleEvents :: World.RSystem ()
 handleEvents = do

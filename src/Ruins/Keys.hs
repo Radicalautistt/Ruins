@@ -15,6 +15,7 @@ concat <$> traverse ESDL.makeKeyPressed [
   , TH.mkName "KeycodeEscape"
   , TH.mkName "KeycodeC"
   , TH.mkName "KeycodeS"
+  , TH.mkName "KeycodeD"
   , TH.mkName "KeycodeM"
   , TH.mkName "KeycodeH"
   ]
