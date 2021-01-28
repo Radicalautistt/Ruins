@@ -5,7 +5,7 @@ version:               0.1.0.0
 description:           A Haskell remake of the RUINS section from Undertale.
 homepage:              https://github.com/Radicalautistt/Ruins
 bug-reports:           https://github.com/Radicalautistt/Ruins/issues
-license:               NONE
+license:               BSD3
 license-file:          LICENSE
 author:                Radical autist
 maintainer:            56npyfygybys@gmail.com

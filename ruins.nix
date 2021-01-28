@@ -18,6 +18,6 @@ mkDerivation {
   ];
   homepage = "https://github.com/Radicalautistt/Ruins";
   description = "A Haskell remake of the RUINS section from Undertale.";
-  license = "unknown";
+  license = stdenv.lib.licenses.bsd3;
   hydraPlatforms = stdenv.lib.platforms.none;
 }
