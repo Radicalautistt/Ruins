@@ -38,10 +38,13 @@ module Ruins.Components.World (
      , cameraScale
      , cameraViewport
      , roomSize
+     , roomMusic
      , roomBoundary
      , roomBackground
      , roomCameraActive
      , roomCameraViewport
+     , roomPlayerInitAction
+     , roomPlayerInitPosition
      , roomBackgroundRectangle
      ) where
 
@@ -88,10 +91,13 @@ newtype Pressed = Pressed Bool
 -- | Example config can be found at assets/rooms/debug.json
 data Room = Room {
    _roomSize :: Linear.V2 CInt
+ , _roomMusic :: Misc.Name
  , _roomBoundary :: (Double, Double, Double, Double)
  , _roomBackground :: Either Sprites.Sprite Sprites.TileMap
  , _roomCameraActive :: Bool
  , _roomCameraViewport :: Maybe (CInt, CInt)
+ , _roomPlayerInitAction :: Characters.Action
+ , _roomPlayerInitPosition :: (Double, Double)
  , _roomBackgroundRectangle :: ESDL.Rect
 }
 
@@ -101,10 +107,13 @@ deriving anyclass instance Aeson.FromJSON element =>
 instance Aeson.FromJSON Room where
   parseJSON = Aeson.withObject "room configuration" \ room -> do
     _roomSize <- room .: "room-size"
+    _roomMusic <- room .: "music"
     _roomBoundary <- room .: "boundary"
     _roomBackground <- room .: "background"
     _roomCameraActive <- room .: "camera-active"
     _roomCameraViewport <- room .:? "camera-viewport"
+    _roomPlayerInitAction <- room .: "player-init-action"
+    _roomPlayerInitPosition <- room .: "player-init-position"
     _roomBackgroundRectangle <- room .: "background-rectangle"
     pure Room {..}
 

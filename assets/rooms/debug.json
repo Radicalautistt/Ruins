@@ -1,8 +1,11 @@
 {
     "room-size": [1000, 800],
+    "music": "ruins-low",
     "camera-active": true,
     "boundary": [72, 0, 800, 360],
     "camera-viewport": [800, 600],
+    "player-init-action": "move-down",
+    "player-init-position": [0, 400],
     "background": {
        "Right": {
            "source-name": "ruins-tiles",

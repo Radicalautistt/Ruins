@@ -27,12 +27,15 @@ import System.FilePath.Posix ((</>))
 import Control.Exception (bracket)
 import qualified Control.Concurrent.Async as Async
 import Control.Lens (Lens', set, view, over, (^.), (&))
+import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
 import qualified Ruins.Miscellaneous as Misc
 import qualified Ruins.Extra.SDL as ESDL
+import qualified Ruins.Extra.Apecs as EApecs
 import qualified Ruins.Components.World as World
 import qualified Ruins.Components.Sprites as Sprites
+import qualified Ruins.Components.Characters as Characters
 
 mkAssetPath :: FilePath -> FilePath
 mkAssetPath = (</>) "assets"
@@ -116,6 +119,15 @@ loadRoom roomFile = do
 
   Apecs.global Apecs.$~ set World.cameraActive _roomCameraActive
   Apecs.global Apecs.$~ set World.cameraViewport _roomCameraViewport
+
+  World.SoundMuted muted <- Apecs.get Apecs.global
+  unless muted do
+    Mixer.playMusic Mixer.Forever =<<
+      getResource World.music _roomMusic
+
+  Apecs.cmapM_ \ (Characters.Frisk, friskEntity) -> do
+    friskEntity Apecs.$= EApecs.mkPosition `uncurry` _roomPlayerInitPosition
+    friskEntity Apecs.$= _roomPlayerInitAction
 
   renderer <- Apecs.get Apecs.global
   -- | Some backgrounds in Undertale are plain images, thus we need to handle them properly.

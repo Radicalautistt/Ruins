@@ -1,8 +1,11 @@
 {
     "room-size": [745, 156],
+    "music": "home-low",
     "camera-active": true,
     "boundary": [250, 0, 0, 0],
     "camera-viewport": [500, 156],
+    "player-init-action": "move-left",
+    "player-init-position": [0, 400],
     "background": {
         "Left": {
             "spritesheet-name": "backgrounds",

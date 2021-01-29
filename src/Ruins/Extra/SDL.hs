@@ -120,6 +120,7 @@ initSDL = do
   SDL.initialize initFlags
 #endif
   Font.initialize
+  Mixer.initialize [Mixer.InitMP3, Mixer.InitOGG]
   Mixer.openAudio Mixer.defaultAudio 256
 
 #ifdef __JOYSTICK

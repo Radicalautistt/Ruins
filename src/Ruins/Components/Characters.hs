@@ -4,6 +4,7 @@ module Ruins.Components.Characters where
 
 import qualified Apecs
 import qualified Apecs.TH as Apecs
+import qualified Data.Aeson as Aeson
 
 -- | Main hero/villain.
 data Frisk = Frisk
@@ -35,6 +36,14 @@ data Action = MoveUp
    | MoveDown
    | MoveLeft
    | MoveRight deriving stock Show
+
+instance Aeson.FromJSON Action where
+  parseJSON = Aeson.withText "action" \ case
+    "move-up" -> pure MoveUp
+    "move-down" -> pure MoveDown
+    "move-left" -> pure MoveLeft
+    "move-right" -> pure MoveRight
+    _otherwise -> fail "there is no otherwise"
 
 newtype HealthPoints = HealthPoints Double
   deriving newtype Num
