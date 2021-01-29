@@ -14,6 +14,7 @@ module Ruins.Extra.SDL (
      , Rect
      , Color
      , mkRectangle
+     , unitRectangle
      , copyTexture
      -- * lenses
      , rectExtent
@@ -62,16 +63,19 @@ mkRectangle :: Num value => (value, value) -> (value, value) -> SDL.Rectangle va
 mkRectangle (x, y) (width, height) =
   SDL.Rectangle (Linear.P (Linear.V2 x y)) (Linear.V2 width height)
 
+unitRectangle :: Rect
+unitRectangle = mkRectangle (0, 0) (0, 0)
+
 -- | Lenses for SDL.Rectangles. Example usage:
 -- | ghci> mkRectangle (10, 20) (30, 40) & rectPosition _x +~ 100
 -- | ghci> Rectangle (P (V2 110 20)) (V2 30 40)
-rectPosition :: Lens' (Linear.V2 CInt) CInt -> Lens' Rect CInt
+rectPosition :: Num value => Lens' (Linear.V2 value) value -> Lens' (SDL.Rectangle value) value
 rectPosition axisLens = lens getter setter
   where getter (SDL.Rectangle (Linear.P position) _) = position ^. axisLens
         setter (SDL.Rectangle (Linear.P position) extent) newAxisValue =
           SDL.Rectangle (Linear.P (set axisLens newAxisValue position)) extent
 
-rectExtent :: Lens' (Linear.V2 CInt) CInt -> Lens' Rect CInt
+rectExtent :: Num value => Lens' (Linear.V2 value) value -> Lens' (SDL.Rectangle value) value
 rectExtent axisLens = lens getter setter
   where getter (SDL.Rectangle _ extent) = extent ^. axisLens
         setter (SDL.Rectangle position extent) newExtentValue =
@@ -123,6 +127,7 @@ initSDL = do
 #endif
   window <- withWindow "Ruins" SDL.defaultWindow
   renderer <- withRenderer window rendererConfig
+  SDL.windowBordered window SDL.$= False
 
   pure (window, renderer)
   where initFlags = Vector.fromList [SDL.InitVideo, SDL.InitEvents, SDL.InitAudio]

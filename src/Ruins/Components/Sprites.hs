@@ -67,11 +67,12 @@ instance Aeson.FromJSON TileMap where
 
 data Background = Background {
   _backgroundTexture :: SDL.Texture
+  , _backgroundBoundary :: (Double, Double, Double, Double)
   , _backgroundRectangle :: ESDL.Rect
 }
 
 instance Semigroup Background where _previous <> next = next
-instance Monoid Background where mempty = Background (unsafeCoerce nullPtr) (ESDL.mkRectangle (0, 0) (0, 0))
+instance Monoid Background where mempty = Background (unsafeCoerce nullPtr) (0, 0, 0, 0) ESDL.unitRectangle
 
 data Animation = Animation {
      _animationName :: Text

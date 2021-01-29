@@ -15,7 +15,6 @@ module Ruins.Components.World (
      , Camera (..)
      , TextBox (..)
      , Pressed (..)
-     , Boundary (..)
      , QuitGame (..)
      , Resources (..)
      , ResourceMap
@@ -37,9 +36,12 @@ module Ruins.Components.World (
      , cameraActive
      , cameraOffset
      , cameraScale
+     , cameraViewport
      , roomSize
+     , roomBoundary
      , roomBackground
      , roomCameraActive
+     , roomCameraViewport
      , roomBackgroundRectangle
      ) where
 
@@ -58,7 +60,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
-import Data.Aeson ((.:))
+import Data.Aeson ((.:), (.:?))
 import qualified Data.Aeson as Aeson
 import Data.Semigroup (Sum (..), Any (..))
 import Control.Lens (makeLenses)
@@ -86,14 +88,12 @@ newtype Pressed = Pressed Bool
 -- | Example config can be found at assets/rooms/debug.json
 data Room = Room {
    _roomSize :: Linear.V2 CInt
+ , _roomBoundary :: (Double, Double, Double, Double)
  , _roomBackground :: Either Sprites.Sprite Sprites.TileMap
  , _roomCameraActive :: Bool
+ , _roomCameraViewport :: Maybe (CInt, CInt)
  , _roomBackgroundRectangle :: ESDL.Rect
 }
-
-instance Semigroup Room where _previous <> next = next
-instance Monoid Room where
-  mempty = Room Linear.zero (Right (Sprites.TileMap "" "" Misc.emptyUArray 0 0 0 0)) False (ESDL.mkRectangle (0, 0) (0, 0))
 
 deriving anyclass instance Aeson.FromJSON element =>
   Aeson.FromJSON (Linear.V2 element)
@@ -101,8 +101,10 @@ deriving anyclass instance Aeson.FromJSON element =>
 instance Aeson.FromJSON Room where
   parseJSON = Aeson.withObject "room configuration" \ room -> do
     _roomSize <- room .: "room-size"
+    _roomBoundary <- room .: "boundary"
     _roomBackground <- room .: "background"
     _roomCameraActive <- room .: "camera-active"
+    _roomCameraViewport <- room .:? "camera-viewport"
     _roomBackgroundRectangle <- room .: "background-rectangle"
     pure Room {..}
 
@@ -141,30 +143,19 @@ instance Monoid Resources where
   mempty =
     Resources HMap.empty HMap.empty HMap.empty HMap.empty
 
--- | Room boundary.
--- | Should be deprecated as soon as I implement a collision map.
-data Boundary = Boundary {
-     xmax :: Double
-   , xmin :: Double
-   , ymax :: Double
-   , ymin :: Double
-}
-
-instance Semigroup Boundary where _previous <> next = next
-instance Monoid Boundary where mempty = Boundary 0 0 0 0
-
 data Camera = Camera {
   _cameraActive :: Bool
   , _cameraScale :: Double
   , _cameraOffset :: Linear.V2 Double
+  , _cameraViewport :: Maybe (CInt, CInt)
 }
 
 instance Semigroup Camera where
-  Camera {..} <> Camera active scale position  =
-    Camera (_cameraActive && active) (_cameraScale * scale) (_cameraOffset + position)
+  Camera {..} <> Camera active scale position viewport =
+    Camera (_cameraActive && active) (_cameraScale * scale) (_cameraOffset + position) viewport
 
 instance Monoid Camera where
-  mempty = Camera False 1 Linear.zero
+  mempty = Camera False 1 Linear.zero Nothing
 
 -- | The Semigroup and Monoid instances for SDL.Window/Renderer
 -- | are needed to use them as global apecs components.
@@ -190,7 +181,6 @@ traverse EApecs.makeGlobalComponent [
   ''Time
   , ''Camera
   , ''TextBox
-  , ''Boundary
   , ''QuitGame
   , ''Resources
   , ''SDL.Window
@@ -211,7 +201,6 @@ Apecs.makeWorld "Ruins" [
   , ''Camera
   , ''TextBox
   , ''Pressed
-  , ''Boundary
   , ''QuitGame
   , ''Resources
   , ''SDL.Window

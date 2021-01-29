@@ -11,6 +11,7 @@ import qualified Apecs
 import qualified Linear
 import qualified Data.Vector as Vector
 import Data.Bool (bool)
+import Data.Maybe (fromJust)
 import qualified Data.Text as Text
 import Foreign.C.Types (CInt (..))
 import Control.Lens (ix, (^.), (&~), (-=), (+=))
@@ -139,8 +140,15 @@ drawGame = do
   SDL.clear renderer
   SDL.rendererDrawColor renderer SDL.$= black
   Sprites.Background {..} <- Apecs.get Apecs.global
+
+  let xoffset = round (_cameraOffset ^. Linear._x)
+  let sourceRectangle =
+        if not _cameraActive
+           then Nothing
+                else (Just do ESDL.mkRectangle (xoffset, 0) (fromJust _cameraViewport))
+
   SDL.copy renderer _backgroundTexture
-    (Just do ESDL.mkRectangle (round $ _cameraOffset ^. Linear._x, 0) (800, 600))
+    sourceRectangle
     (Just _backgroundRectangle)
 
   drawLevers renderer

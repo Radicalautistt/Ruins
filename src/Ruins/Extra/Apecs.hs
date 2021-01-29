@@ -52,7 +52,7 @@ newEntity_ :: MonadIO m =>
 
 newEntity_ component = do
   entity <- Apecs.nextEntity
-  Apecs.set entity component
+  entity Apecs.$= component
 
 {-# Inline mkPosition #-}
 mkPosition :: Double -> Double -> Physics.Position

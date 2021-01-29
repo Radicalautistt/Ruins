@@ -26,7 +26,7 @@ playMusic musicName times = do
 setAudioVolume :: Mixer.Volume -> World.RSystem ()
 setAudioVolume volume = do
   Mixer.setMusicVolume volume
-  Apecs.set Apecs.global (World.SoundVolume volume)
+  Apecs.global Apecs.$= World.SoundVolume volume
 
 toggleAudio :: World.RSystem ()
 toggleAudio =

@@ -111,11 +111,14 @@ loadAnimations = do
 -- , which in turn saves our "resources budget".
 loadRoom :: FilePath -> World.RSystem ()
 loadRoom roomFile = do
-  rawRoom <- liftIO (BString.readFile (roomsPath </> roomFile))
-  World.Room {..} <- Misc.decodeJSON @World.Room rawRoom
+  World.Room {..} <-
+    Misc.decodeJSON @World.Room =<< liftIO (BString.readFile (roomsPath </> roomFile))
+
+  Apecs.global Apecs.$~ set World.cameraActive _roomCameraActive
+  Apecs.global Apecs.$~ set World.cameraViewport _roomCameraViewport
 
   renderer <- Apecs.get Apecs.global
-  -- | Some backgrounds in Undertale are plain images, thus we needle to handle them properly.
+  -- | Some backgrounds in Undertale are plain images, thus we need to handle them properly.
   case _roomBackground of
     Left Sprites.Sprite {..} -> do
       (view Sprites.spriteSheet -> source) <-
@@ -129,7 +132,7 @@ loadRoom roomFile = do
       SDL.rendererRenderTarget renderer SDL.$= Nothing
       Sprites.Background {..} <- Apecs.get Apecs.global
       SDL.destroyTexture _backgroundTexture
-      Apecs.global Apecs.$= Sprites.Background target _roomBackgroundRectangle
+      Apecs.global Apecs.$= Sprites.Background target _roomBoundary _roomBackgroundRectangle
 
     -- | While others are made of tiles.
     Right Sprites.TileMap {..} -> do
@@ -156,7 +159,7 @@ loadRoom roomFile = do
       SDL.rendererRenderTarget renderer SDL.$= Nothing
       Sprites.Background {..} <- Apecs.get Apecs.global
       SDL.destroyTexture _backgroundTexture
-      Apecs.global Apecs.$= Sprites.Background target _roomBackgroundRectangle
+      Apecs.global Apecs.$= Sprites.Background target _roomBoundary _roomBackgroundRectangle
 
 loadResources :: World.RSystem ()
 loadResources = do
@@ -181,7 +184,6 @@ loadResources = do
           Apecs.modify Apecs.global
             (over World.sprites (HMap.insert (Misc.mkName spriteName) sprite))
 
-        -- | Eww, code duplication...
         insertResource resourceLens resourceName = do
           resource <- manageResource resourceName
          

@@ -63,7 +63,7 @@ animateIndefinitely names = for_ names animate
 
 move :: Apecs.Entity -> Characters.Action -> Misc.Name -> World.RSystem ()
 move entity direction animationName = do
-  Apecs.set entity direction
+  entity Apecs.$= direction
   setVelocityValue
   animate animationName
   where setVelocityValue =
@@ -120,7 +120,7 @@ handleEvent = \ case
                        Apecs.Not @Characters.Froggit
                       Apecs.modify Apecs.global (set World.opened False)
 
-  Keys.PRESSED_ESCAPE -> Apecs.set Apecs.global (World.QuitGame True)
+  Keys.PRESSED_ESCAPE -> Apecs.global Apecs.$= World.QuitGame True
 
   Keys.JOYSTICK_UP -> moveFrisk Characters.MoveUp
   Keys.JOYSTICK_DOWN -> moveFrisk Characters.MoveDown
@@ -139,6 +139,6 @@ handleEvents :: World.RSystem ()
 handleEvents = do
   (map SDL.eventPayload -> eventPayloads) <- SDL.pollEvents
   when (SDL.QuitEvent `elem` eventPayloads) do
-    Apecs.set Apecs.global (World.QuitGame True)
+    Apecs.global Apecs.$= World.QuitGame True
 
   for_ eventPayloads handleEvent

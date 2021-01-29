@@ -29,24 +29,24 @@ incrementTime deltaTime =
     currentTime + deltaTime
 
 {-# Inline clamp #-}
-clamp :: APhysics.Position -> World.Boundary -> APhysics.Position
-clamp (EApecs.XY x y) World.Boundary {..} =
+clamp :: APhysics.Position -> (Double, Double, Double, Double) -> APhysics.Position
+clamp (EApecs.XY x y) (xmax, xmin, ymax, ymin) =
   EApecs.mkPosition (min xmax (max xmin x)) (min ymax (max ymin y))
 
 -- clampFrisk :: World.RSystem ()
 -- clampFrisk = do
---   boundary <- Apecs.get Apecs.global
+--   Sprites.Background {_backgroundBoundary} <- Apecs.get Apecs.global
 --   Apecs.cmap \ (Characters.Frisk, friskPosition) ->
---     clamp friskPosition boundary
+--     clamp friskPosition _backgroundBoundary
 
 clampCamera :: World.RSystem ()
 clampCamera = do
-  boundary <- Apecs.get Apecs.global
+  Sprites.Background {_backgroundBoundary} <- Apecs.get Apecs.global
   Apecs.modify Apecs.global \ camera@World.Camera{_cameraActive} ->
     if not _cameraActive
        then camera
             else camera & World.cameraOffset %~ \ offset ->
-              clamp (APhysics.Position offset) boundary ^. EApecs.positionVector
+              clamp (APhysics.Position offset) _backgroundBoundary ^. EApecs.positionVector
 
 {-# Inline stepNeeded #-}
 stepNeeded :: World.Time -> World.Time -> Double -> Bool

@@ -1,0 +1,13 @@
+{
+    "room-size": [745, 156],
+    "camera-active": true,
+    "boundary": [250, 0, 0, 0],
+    "camera-viewport": [500, 156],
+    "background": {
+        "Left": {
+            "spritesheet-name": "backgrounds",
+            "sprite-rectangle": [0, 250, 745, 156]
+        }
+    },
+    "background-rectangle": [0, 200, 1000, 400]
+}

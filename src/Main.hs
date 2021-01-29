@@ -2,6 +2,7 @@
 
 module Main where
 
+import qualified SDL
 import qualified Apecs
 import qualified Data.Text.IO as Text
 import Control.Monad (unless)
@@ -17,11 +18,11 @@ import qualified Ruins.Components.Spawn as Spawn
 import qualified Ruins.Components.World as World
 import qualified Ruins.Components.Characters as Characters
 
-initGame :: World.RSystem ()
-initGame = do
-  -- | Debug level boundary.
-  Apecs.global Apecs.$= World.Boundary 72 0 800 360
+initGame :: SDL.Window -> SDL.Renderer -> World.RSystem ()
+initGame window renderer = do
   Audio.setAudioVolume 30
+  Apecs.global Apecs.$= window
+  Apecs.global Apecs.$= renderer
 
   Spawn.spawnFrisk (EApecs.mkPosition 0 400) False Characters.MoveDown
   Spawn.spawnLever (EApecs.mkPosition 40 300)
@@ -39,11 +40,9 @@ main = do
   with ESDL.initSDL do runManaged . Apecs.runWith world . gameRoutine
   Text.putStrLn "Farewell"
   ESDL.quitSDL
-  where gameRoutine (window, renderer) = do
-          initGame
-          Apecs.global Apecs.$= window
-          Apecs.global Apecs.$= renderer
+  where gameRoutine gameData = do
+          initGame `uncurry` gameData
           Resources.loadResources
-          Resources.loadRoom "home-entrance.json"
+          Resources.loadRoom "home-corridor.json"
           EventHandler.animateIndefinitely ["froggit", "napstablook"]
           gameLoop
