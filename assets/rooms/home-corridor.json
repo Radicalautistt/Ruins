@@ -4,8 +4,11 @@
     "camera-active": true,
     "boundary": [250, 0, 0, 0],
     "camera-viewport": [500, 156],
-    "player-init-action": "move-left",
-    "player-init-position": [0, 400],
+    "player-init-action": "move-right",
+    "player-init-position": [30, 400],
+    "divarication": [
+        [[0, 390], "home-entrance.json"]
+    ],
     "background": {
         "Left": {
             "spritesheet-name": "backgrounds",

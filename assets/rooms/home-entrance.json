@@ -5,6 +5,10 @@
     "boundary": [0, 0, 0, 0],
     "player-init-action": "move-up",
     "player-init-position": [645, 650],
+    "divarication": [
+        [[1115, 500], "home-corridor.json"],
+        [[645, 680], "debug.json"]
+    ],
     "background": {
         "Left": {
             "spritesheet-name": "backgrounds",

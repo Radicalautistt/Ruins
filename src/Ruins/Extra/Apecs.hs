@@ -12,6 +12,7 @@ import qualified Apecs
 import qualified Apecs.Util as Apecs
 import qualified Apecs.Physics as Physics
 import qualified Linear
+import qualified Data.Aeson as Aeson
 import Foreign.C.Types (CInt)
 import Control.Lens (Iso', iso)
 import Control.Monad.Managed (Managed, MonadManaged (..))
@@ -26,6 +27,11 @@ import qualified Language.Haskell.TH.Syntax as TH
 type ManagedSystem world result = Apecs.SystemT world Managed result
 deriving newtype instance MonadFail m => MonadFail (Apecs.SystemT world m)
 deriving newtype instance MonadManaged m => MonadManaged (Apecs.SystemT world m)
+
+instance Aeson.FromJSON Physics.Position where
+  parseJSON = Aeson.withArray "position" \ position -> do
+    [x, y] <- Aeson.parseJSON @[Double] (Aeson.Array position)
+    pure (mkPosition x y)
 
 -- | Derive a global component instance if a given type is Monoid.
 makeGlobalComponent :: TH.Name -> TH.DecQ

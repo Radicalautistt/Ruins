@@ -5,12 +5,13 @@ module Ruins.Step (step) where
 
 import qualified SDL.Mixer as Mixer
 import qualified Apecs
-import qualified Apecs.Physics as APhysics
+import qualified Apecs.Physics as Physics
 import qualified Data.Vector as Vector
 import qualified Linear
 import GHC.Int (neInt)
 import Data.Bool (bool)
 import qualified Data.Text as Text
+import Data.Foldable (for_)
 import Control.Lens (over, each, (&), (^.), (.~), (+~), (%~), (&~), (.=), (+=))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad (when, void)
@@ -29,7 +30,7 @@ incrementTime deltaTime =
     currentTime + deltaTime
 
 {-# Inline clamp #-}
-clamp :: APhysics.Position -> (Double, Double, Double, Double) -> APhysics.Position
+clamp :: Physics.Position -> (Double, Double, Double, Double) -> Physics.Position
 clamp (EApecs.XY x y) (xmax, xmin, ymax, ymin) =
   EApecs.mkPosition (min xmax (max xmin x)) (min ymax (max ymin y))
 
@@ -46,7 +47,7 @@ clampCamera = do
     if not _cameraActive
        then camera
             else camera & World.cameraOffset %~ \ offset ->
-              clamp (APhysics.Position offset) _backgroundBoundary ^. EApecs.positionVector
+              clamp (Physics.Position offset) _backgroundBoundary ^. EApecs.positionVector
 
 {-# Inline stepNeeded #-}
 stepNeeded :: World.Time -> World.Time -> Double -> Bool
@@ -88,13 +89,20 @@ voiceTextBox deltaTime = do
     void (liftIO (Mixer.playOn (fromIntegral _visibleChunk) Mixer.Once voice))
 
 stepCamera :: World.RSystem ()
-stepCamera = Apecs.cmapM_ \ (Characters.Frisk, APhysics.Position friskPosition) ->
+stepCamera = Apecs.cmapM_ \ (Characters.Frisk, Physics.Position friskPosition) ->
   Apecs.modify Apecs.global \ camera@World.Camera {_cameraActive} ->
     if not _cameraActive
        then camera
             else camera &~ do
                    World.cameraOffset .= Linear.zero
-                   World.cameraOffset += friskPosition
+                   World.cameraOffset += (friskPosition - 200)
+
+stepRoom :: World.RSystem ()
+stepRoom = Apecs.cmapM_ \ (Characters.Frisk, Physics.Position friskPosition) -> do
+  World.Divarication paths <- Apecs.get Apecs.global
+  for_ paths \ (Physics.Position roomPosition, roomFilePath) ->
+    when (Linear.norm (roomPosition - friskPosition) < 30) do
+      Resources.loadRoom roomFilePath
 
 step :: World.Time -> World.RSystem ()
 step deltaTime@(World.Time dT) = do
@@ -106,7 +114,8 @@ step deltaTime@(World.Time dT) = do
   stepTextBox deltaTime
   voiceTextBox deltaTime
   stepAnimations deltaTime
-  APhysics.stepPhysics dT
+  Physics.stepPhysics dT
   stepCamera
   -- clampFrisk
+  stepRoom
   clampCamera

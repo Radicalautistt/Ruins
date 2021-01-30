@@ -5,7 +5,10 @@
     "boundary": [72, 0, 800, 360],
     "camera-viewport": [800, 600],
     "player-init-action": "move-down",
-    "player-init-position": [0, 400],
+    "player-init-position": [305, 350],
+    "divarication": [
+        [[305, 285], "home-entrance.json"]
+    ],
     "background": {
        "Right": {
            "source-name": "ruins-tiles",

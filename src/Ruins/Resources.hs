@@ -26,7 +26,7 @@ import System.Directory (listDirectory)
 import System.FilePath.Posix ((</>))
 import Control.Exception (bracket)
 import qualified Control.Concurrent.Async as Async
-import Control.Lens (Lens', set, view, over, (^.), (&))
+import Control.Lens (Lens', set, view, over, (^.), (&), (&~), (.=))
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (managed)
@@ -117,17 +117,20 @@ loadRoom roomFile = do
   World.Room {..} <-
     Misc.decodeJSON @World.Room =<< liftIO (BString.readFile (roomsPath </> roomFile))
 
-  Apecs.global Apecs.$~ set World.cameraActive _roomCameraActive
-  Apecs.global Apecs.$~ set World.cameraViewport _roomCameraViewport
+  Apecs.global Apecs.$~ \ camera -> camera &~ do
+    World.cameraActive .= _roomCameraActive
+    World.cameraViewport .= _roomCameraViewport
 
   World.SoundMuted muted <- Apecs.get Apecs.global
   unless muted do
     Mixer.playMusic Mixer.Forever =<<
       getResource World.music _roomMusic
 
-  Apecs.cmapM_ \ (Characters.Frisk, friskEntity) -> do
-    friskEntity Apecs.$= EApecs.mkPosition `uncurry` _roomPlayerInitPosition
-    friskEntity Apecs.$= _roomPlayerInitAction
+  Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
+    friskEntity Apecs.$=
+      (EApecs.mkPosition `uncurry` _roomPlayerInitPosition, _roomPlayerInitAction)
+
+  Apecs.global Apecs.$= _roomDivarication
 
   renderer <- Apecs.get Apecs.global
   -- | Some backgrounds in Undertale are plain images, thus we need to handle them properly.

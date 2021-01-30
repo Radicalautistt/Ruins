@@ -43,6 +43,6 @@ main = do
   where gameRoutine gameData = do
           initGame `uncurry` gameData
           Resources.loadResources
-          Resources.loadRoom "home-corridor.json"
+          Resources.loadRoom "debug.json"
           EventHandler.animateIndefinitely ["froggit", "napstablook"]
           gameLoop

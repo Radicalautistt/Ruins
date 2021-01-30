@@ -20,6 +20,7 @@ module Ruins.Components.World (
      , ResourceMap
      , SoundMuted (..)
      , SoundVolume (..)
+     , Divarication (..)
   -- * world initialization
      , initRuins
   -- * lenses
@@ -42,6 +43,7 @@ module Ruins.Components.World (
      , roomBoundary
      , roomBackground
      , roomCameraActive
+     , roomDivarication
      , roomCameraViewport
      , roomPlayerInitAction
      , roomPlayerInitPosition
@@ -61,6 +63,8 @@ import Foreign.Ptr (nullPtr)
 import Foreign.C.Types (CInt (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Aeson ((.:), (.:?))
@@ -87,6 +91,12 @@ data Lever = Lever
 -- | Used with levers and buttons.
 newtype Pressed = Pressed Bool
 
+newtype Divarication = Divarication (Vector (Physics.Position, FilePath))
+  deriving newtype Aeson.FromJSON
+
+instance Semigroup Divarication where _previous <> next = next
+instance Monoid Divarication where mempty = Divarication Vector.empty
+
 -- | Room configuration.
 -- | Example config can be found at assets/rooms/debug.json
 data Room = Room {
@@ -95,6 +105,7 @@ data Room = Room {
  , _roomBoundary :: (Double, Double, Double, Double)
  , _roomBackground :: Either Sprites.Sprite Sprites.TileMap
  , _roomCameraActive :: Bool
+ , _roomDivarication :: Divarication
  , _roomCameraViewport :: Maybe (CInt, CInt)
  , _roomPlayerInitAction :: Characters.Action
  , _roomPlayerInitPosition :: (Double, Double)
@@ -111,6 +122,7 @@ instance Aeson.FromJSON Room where
     _roomBoundary <- room .: "boundary"
     _roomBackground <- room .: "background"
     _roomCameraActive <- room .: "camera-active"
+    _roomDivarication <- room .: "divarication"
     _roomCameraViewport <- room .:? "camera-viewport"
     _roomPlayerInitAction <- room .: "player-init-action"
     _roomPlayerInitPosition <- room .: "player-init-position"
@@ -195,6 +207,7 @@ traverse EApecs.makeGlobalComponent [
   , ''SDL.Window
   , ''SoundMuted
   , ''SoundVolume
+  , ''Divarication
   , ''SDL.Renderer
   ]
 
@@ -215,6 +228,7 @@ Apecs.makeWorld "Ruins" [
   , ''SDL.Window
   , ''SoundMuted
   , ''SoundVolume
+  , ''Divarication
   , ''SDL.Renderer
   , ''Script.Script
   , ''Physics.Physics
