@@ -43,14 +43,14 @@ instance Aeson.FromJSON Action where
     "move-down" -> pure MoveDown
     "move-left" -> pure MoveLeft
     "move-right" -> pure MoveRight
-    _otherwise -> fail "there is no otherwise"
+    _otherwise -> fail "there is no otherwise :)"
 
-newtype HealthPoints = HealthPoints Double
+newtype HP = HP Int
   deriving newtype Num
 
 Apecs.makeMapComponents [
-  ''Action
-  , ''HealthPoints
+  ''HP
+  , ''Action
   , ''Speed
   , ''InFight
   , ''Froggit

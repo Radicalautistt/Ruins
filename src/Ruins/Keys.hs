@@ -18,6 +18,11 @@ concat <$> traverse ESDL.makeKeyPressed [
   , TH.mkName "KeycodeD"
   , TH.mkName "KeycodeM"
   , TH.mkName "KeycodeH"
+  , TH.mkName "KeycodeX"
+  , TH.mkName "KeycodeUp"
+  , TH.mkName "KeycodeDown"
+  , TH.mkName "KeycodeLeft"
+  , TH.mkName "KeycodeRight"
   ]
 
 pattern JOYSTICK_PRESSED :: Word8 -> SDL.EventPayload

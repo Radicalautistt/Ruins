@@ -14,6 +14,7 @@ spawnFrisk initialPosition inFight action =
   EApecs.newEntity_ (
     Characters.Frisk
     , action
+    , Characters.HP 20
     , Characters.Speed 300
     , Characters.InFight inFight
     , Physics.KinematicBody
@@ -38,8 +39,8 @@ spawnFroggit position =
     , position
     )
 
-killFroggit :: World.RSystem ()
-killFroggit = Apecs.cmapM_ \ (Characters.Froggit, froggitEntity) ->
+killFroggits :: World.RSystem ()
+killFroggits = Apecs.cmapM_ \ (Characters.Froggit, froggitEntity) ->
   Apecs.destroy froggitEntity (Proxy @Characters.Froggit)
 
 spawnLever :: Physics.Position -> World.RSystem ()

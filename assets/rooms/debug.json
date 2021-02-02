@@ -1,6 +1,6 @@
 {
     "room-size": [1000, 800],
-    "music": "ruins-low",
+    "music": "home-low.ogg",
     "camera-active": true,
     "boundary": [72, 0, 800, 360],
     "camera-viewport": [800, 600],

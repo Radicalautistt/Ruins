@@ -9,14 +9,20 @@ module Ruins.Components.World (
        RSystem
      , Ruins
   -- * components
+     , Menu (..)
      , Room (..)
      , Time (..)
+     , Item (..)
      , Lever (..)
      , Camera (..)
      , TextBox (..)
      , Pressed (..)
      , QuitGame (..)
+     , MenuFocus (..)
+     , MenuState (..)
      , Resources (..)
+     , ItemAction (..)
+     , CellAction (..)
      , ResourceMap
      , SoundMuted (..)
      , SoundVolume (..)
@@ -34,6 +40,8 @@ module Ruins.Components.World (
      , letterDelay
      , voiceSound
      , visibleChunk
+     , menuOpened
+     , menuState
      , cameraActive
      , cameraOffset
      , cameraScale
@@ -129,6 +137,38 @@ instance Aeson.FromJSON Room where
     _roomBackgroundRectangle <- room .: "background-rectangle"
     pure Room {..}
 
+data Item = ToyKnife
+   | FadedRibbon
+   | MonsterCandy
+   | ButterscotchPie
+
+data ItemAction = Use
+   | Info
+   | Drop
+
+data CellAction = Flirt
+   | SayHello
+   | PuzzleHelp
+   | CallHerMom
+   | AboutYourself
+
+data MenuFocus = ItemFocus
+   | StatFocus
+   | CellFocus
+
+data MenuState = StatMenu
+   | CellMenu CellAction
+   | DefaultMenu MenuFocus
+   | ItemMenu (Either Item ItemAction)
+
+data Menu = Menu {
+  _menuOpened :: Bool
+  , _menuState :: MenuState
+}
+
+instance Semigroup Menu where _previous <> next = next
+instance Monoid Menu where mempty = Menu False (DefaultMenu ItemFocus)
+
 -- | Global text box component.
 -- | It is handled by the Ruins.Step.stepTextBox function.
 data TextBox = TextBox {
@@ -199,7 +239,8 @@ newtype QuitGame = QuitGame Bool
   deriving (Semigroup, Monoid) via Any
 
 traverse EApecs.makeGlobalComponent [
-  ''Time
+  ''Menu
+  , ''Time
   , ''Camera
   , ''TextBox
   , ''QuitGame
@@ -218,7 +259,8 @@ Apecs.makeMapComponents [
   ]
 
 Apecs.makeWorld "Ruins" [
-  ''Time
+  ''Menu
+  , ''Time
   , ''Lever
   , ''Camera
   , ''TextBox
@@ -233,20 +275,21 @@ Apecs.makeWorld "Ruins" [
   , ''Script.Script
   , ''Physics.Physics
 
+  , ''Characters.HP
   , ''Characters.Frisk
   , ''Characters.Speed
   , ''Characters.Action
   , ''Characters.InFight
   , ''Characters.Froggit
   , ''Characters.Napstablook
-  , ''Characters.HealthPoints
 
   , ''Sprites.Sprite
   , ''Sprites.Background
   ]
 
 concat <$> traverse makeLenses [
-  ''Room
+  ''Menu
+  , ''Room
   , ''Camera
   , ''TextBox
   , ''Resources

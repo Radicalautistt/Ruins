@@ -10,6 +10,7 @@ import qualified SDL.Font as Font
 import qualified Apecs
 import qualified Linear
 import qualified Data.Vector as Vector
+import Data.Text (Text)
 import Data.Bool (bool)
 import Data.Maybe (fromJust)
 import qualified Data.Text as Text
@@ -80,25 +81,35 @@ drawRectangle renderer rectangle foreground background = do
     SDL.rendererDrawColor renderer SDL.$= foreground
     renderer `SDL.fillRect` Just innerRectangle
 
+drawText :: SDL.Renderer -> Text -> Misc.Name -> ESDL.Rect -> World.RSystem ()
+drawText renderer text fontName targetRectangle = do
+  font <- Resources.getResource World.fonts fontName
+  tempSurface <- Font.solid font white text
+  texture <- SDL.createTextureFromSurface renderer tempSurface
+  SDL.freeSurface tempSurface
+  SDL.copy renderer texture Nothing (Just targetRectangle)
+  SDL.destroyTexture texture
+
 drawTextBox :: SDL.Renderer -> World.RSystem ()
 drawTextBox renderer = do
   World.TextBox {..} <- Apecs.get Apecs.global
   when _opened do
-    drawRectangle renderer (ESDL.mkRectangle (350, 500) (700, 200)) black white
-    dialogueFont <- Resources.getResource World.fonts "dialogue"
-    tempSurface <- Font.solid dialogueFont white (Text.take _visibleChunk _currentText)
-    textTexture <- SDL.createTextureFromSurface renderer tempSurface
-    SDL.freeSurface tempSurface
-    let textWidth = fromIntegral (_visibleChunk * 13)
-    SDL.copy renderer textTexture Nothing (Just do ESDL.mkRectangle (370, 520) (textWidth, 50))
-    SDL.destroyTexture textTexture
+    case fromIntegral (_visibleChunk * 13) of
+      textWidth -> do
+        drawRectangle renderer textBox black white
+        drawText renderer (Text.take _visibleChunk _currentText)
+          "dialogue" (ESDL.mkRectangle (370, 520) (textWidth, 50))
+        where textBox = ESDL.mkRectangle (340, 500) (700, 200)
+
+drawHeart :: SDL.Renderer -> ESDL.Rect -> World.RSystem ()
+drawHeart renderer targetRectangle =
+  drawPart renderer "frisk"
+    (ESDL.mkRectangle (99, 0) (16, 16)) targetRectangle
 
 drawFrisk :: SDL.Renderer -> World.RSystem ()
 drawFrisk renderer = Apecs.cmapM_ \ (Characters.Frisk, EApecs.RXY x y, action, Characters.InFight inFight) -> do
   if inFight
-     then drawPart renderer "frisk"
-            (ESDL.mkRectangle (99, 0) (16, 16))
-            (ESDL.mkRectangle (x, y) (20, 20))
+     then drawHeart renderer (ESDL.mkRectangle (x, y) (20, 20))
           else do let friskRow = spriteSheetRow "frisk"
                   moveUp <- friskRow 0
                   moveDown <- friskRow 1
@@ -133,6 +144,63 @@ drawNapstablook renderer =
                     drawPart renderer "napstablook"
                       stareRect (ESDL.mkRectangle (x, y) (300, 400))
 
+drawMenu :: SDL.Renderer -> World.RSystem ()
+drawMenu renderer = Apecs.cmapM_ \ (Characters.Frisk, Characters.HP hp) -> do
+  World.Menu {..} <- Apecs.get Apecs.global
+  when _menuOpened do
+    drawMenuChunk (ESDL.mkRectangle (50, 100) (230, 168))
+    drawMenuText "N." (ESDL.mkRectangle (80, 110) (50, 50))
+    drawMenuText "LV 1" (ESDL.mkRectangle (80, 160) (50, 25))
+    drawMenuText ("HP " <> Text.pack (show hp) <> "/20") (ESDL.mkRectangle (80, 190) (100, 25))
+    drawMenuText "G  0" (ESDL.mkRectangle (80, 220) (50, 25))
+
+    drawMenuChunk (ESDL.mkRectangle (50, 280) (230, 230))
+    drawMenuText "ITEM" (ESDL.mkRectangle (140, 310) (85, 50))
+    drawMenuText "STAT" (ESDL.mkRectangle (140, 370) (85, 50))
+    drawMenuText "CELL" (ESDL.mkRectangle (140, 430) (85, 50))
+    case _menuState of
+      World.ItemMenu _ -> do
+        drawMenuChunk (ESDL.mkRectangle (305, 100) (530, 500))
+        drawHeart renderer (ESDL.mkRectangle (338, 520) (30, 30))
+        drawMenuText "USE        INFO        DROP" (ESDL.mkRectangle (378, 510) (405, 50))
+
+      World.DefaultMenu menuFocus ->
+        case menuFocus of
+          World.ItemFocus -> drawHeart renderer (ESDL.mkRectangle (100, 320) (30, 30))
+          World.StatFocus -> drawHeart renderer (ESDL.mkRectangle (100, 380) (30, 30))
+          World.CellFocus -> drawHeart renderer (ESDL.mkRectangle (100, 440) (30, 30))
+
+      World.StatMenu -> do
+        drawMenuChunk (ESDL.mkRectangle (305, 100) (530, 600))
+        drawMenuText "\"N.\"" (ESDL.mkRectangle (350, 130) (80, 60))
+        drawMenuText "LV 1" (ESDL.mkRectangle (350, 220) (85, 50))
+        drawMenuText ("HP " <> Text.pack (show hp) <> "/20") (ESDL.mkRectangle (350, 260) (180, 50))
+        drawMenuText "AT 0(0)          EXP: 0" (ESDL.mkRectangle (350, 350) (365, 50))
+        drawMenuText "DF 0(0)          NEXT: 10" (ESDL.mkRectangle (350, 390) (412, 50))
+        drawMenuText "WEAPON: Stick" (ESDL.mkRectangle (350, 480) (280, 50))
+        drawMenuText "ARMOR: Bandage" (ESDL.mkRectangle (350, 530) (315, 50))
+        drawMenuText "GOLD: 0" (ESDL.mkRectangle (350, 600) (140, 50))
+
+      World.CellMenu cellAction -> do
+        drawMenuChunk (ESDL.mkRectangle (305, 100) (530, 420))
+        drawMenuText "Say Hello" (ESDL.mkRectangle (380, 130) (200, 50))
+        drawMenuText "About Yourself" (ESDL.mkRectangle (380, 180) (300, 50))
+        drawMenuText "Call Her \"Mom\"" (ESDL.mkRectangle (380, 230) (290, 50))
+        drawMenuText "Flirt" (ESDL.mkRectangle (380, 280) (105, 50))
+        drawMenuText "Puzzle Help" (ESDL.mkRectangle (380, 330) (250, 50))
+
+        case cellAction of
+          World.Flirt -> drawHeart renderer (ESDL.mkRectangle (340, 290) (30, 30))
+          World.SayHello -> drawHeart renderer (ESDL.mkRectangle (340, 140) (30, 30))
+          World.PuzzleHelp -> drawHeart renderer (ESDL.mkRectangle (340, 340) (30, 30))
+          World.CallHerMom -> drawHeart renderer (ESDL.mkRectangle (340, 240) (30, 30))
+          World.AboutYourself -> drawHeart renderer (ESDL.mkRectangle (340, 190) (30, 30))
+
+  where drawMenuChunk rectangle =
+          drawRectangle renderer rectangle black white
+        drawMenuText text rectangle =
+          drawText renderer text "dialogue" rectangle
+
 drawGame :: World.RSystem ()
 drawGame = do
   renderer <- Apecs.get Apecs.global
@@ -155,4 +223,5 @@ drawGame = do
   drawFroggits renderer
   drawFrisk renderer
   drawTextBox renderer
+  drawMenu renderer
   SDL.present renderer
