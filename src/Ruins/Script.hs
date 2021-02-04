@@ -1,5 +1,6 @@
 module Ruins.Script (
        say
+     , sayDefault
      , runCommand
      , parseScripts
      ) where
@@ -9,14 +10,12 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Linear
 import qualified Data.Vector as Vector
-import Foreign.C.Types (CInt (..))
 import Control.Applicative ((<|>))
-import Control.Lens ((&~), (.=), (+=), (<&>))
+import Control.Lens ((&~), (.=), (+=))
 import Data.Void (Void)
 import qualified Text.Megaparsec as MParsec
 import qualified Text.Megaparsec.Char as MParsec
 import qualified Text.Megaparsec.Char.Lexer as MParsec
-import qualified Ruins.Extra.SDL as ESDL
 import qualified Ruins.Extra.Apecs as EApecs
 import qualified Ruins.Miscellaneous as Misc
 import qualified Ruins.Components.World as World
@@ -87,21 +86,26 @@ runCommand = \ case
 
   Script.Say text textDelay entityFace voiceName ->
     Apecs.set Apecs.global $ mempty &~ do
-      World.opened .= True
-      World.sprite .= entityFace
-      World.voiceSound .= voiceName
-      World.currentText .= text
-      World.letterDelay .= textDelay
+      World.textBoxOpened .= True
+      World.textBoxSprite .= entityFace
+      World.textBoxVoiceSound .= voiceName
+      World.textBoxCurrentText .= text
+      World.textBoxLetterDelay .= textDelay
 
-runScript :: Script.Script -> World.RSystem ()
-runScript Script.Script {..} =
-  runCommand (_scriptData Vector.! _scriptCounter)
+-- runScript :: Script.Script -> World.RSystem ()
+-- runScript Script.Script {..} =
+--   runCommand (_scriptData Vector.! _scriptCounter)
 
-say :: Text -> Double -> Maybe Sprites.Sprite -> Misc.Name -> World.RSystem ()
-say text textDelay entityFace voiceName =
+say :: World.TextBoxPosition -> Text -> Double -> Maybe Sprites.Sprite -> Misc.Name -> World.RSystem ()
+say position text textDelay entityFace voiceName =
   Apecs.set Apecs.global $ mempty &~ do
-    World.opened .= True
-    World.currentText .= text
-    World.sprite .= entityFace
-    World.voiceSound .= voiceName
-    World.letterDelay .= textDelay
+    World.textBoxOpened .= True
+    World.textBoxActive .= True
+    World.textBoxSprite .= entityFace
+    World.textBoxPosition .= position
+    World.textBoxVoiceSound .= voiceName
+    World.textBoxCurrentText .= text
+    World.textBoxLetterDelay .= textDelay
+
+sayDefault :: World.TextBoxPosition -> Text -> World.RSystem ()
+sayDefault position text = say position text 0.09 Nothing "default-voice"

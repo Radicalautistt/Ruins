@@ -11,13 +11,14 @@ module Ruins.EventHandler (
      ) where
 
 import qualified SDL
-import qualified SDL.Mixer as Mixer
 import qualified Apecs
 import qualified Apecs.Physics as Physics
 import qualified Linear
+import qualified Data.Text as Text
 import Data.Foldable (for_)
+import qualified Data.Vector as Vector
 import qualified Data.HashMap.Strict as HMap
-import Control.Lens (Lens', set, over, (&), (&~), (.=), (%=), (+~), (-~))
+import Control.Lens (Lens', set, over, (&), (&~), (.=), (%=), (.~), (+~), (-~))
 import Control.Monad (when, unless)
 import qualified Ruins.Keys as Keys
 import qualified Ruins.Audio as Audio
@@ -91,9 +92,11 @@ setMenuState newState =
   Apecs.global Apecs.$~ set World.menuState newState
 
 toggleMenu :: World.RSystem ()
-toggleMenu = Apecs.global Apecs.$~ \ menu -> menu &~ do
-  World.menuOpened %= not
-  World.menuState .= World.DefaultMenu World.ItemFocus
+toggleMenu = do
+  Audio.playSound "menu-move"
+  Apecs.global Apecs.$~ \ menu -> menu &~ do
+    World.menuOpened %= not
+    World.menuState .= World.DefaultMenu World.ItemFocus
 
 handleMenuCursor :: SDL.EventPayload -> World.MenuState -> World.RSystem ()
 handleMenuCursor pressedKey menuState =
@@ -102,54 +105,84 @@ handleMenuCursor pressedKey menuState =
       case menuFocus of
         World.ItemFocus -> case pressedKey of
           Keys.PRESSED_UP -> pure ()
-          Keys.PRESSED_DOWN -> setDefaultFocus World.StatFocus
+          Keys.PRESSED_DOWN -> moveDefaultMenu World.StatFocus
           _otherwise -> pure ()
 
         World.StatFocus -> case pressedKey of
-          Keys.PRESSED_UP -> setDefaultFocus World.ItemFocus
-          Keys.PRESSED_DOWN -> setDefaultFocus World.CellFocus
+          Keys.PRESSED_UP -> moveDefaultMenu World.ItemFocus
+          Keys.PRESSED_DOWN -> moveDefaultMenu World.CellFocus
           _otherwise -> pure ()
 
         World.CellFocus -> case pressedKey of
-          Keys.PRESSED_UP -> setDefaultFocus World.StatFocus
+          Keys.PRESSED_UP -> moveDefaultMenu World.StatFocus
           Keys.PRESSED_DOWN -> pure ()
+          _otherwise -> pure ()
+
+    World.ItemMenu indexOrAction -> case indexOrAction of
+      Left index -> do
+        World.Inventory inventory <- Apecs.get Apecs.global
+        case pressedKey of
+          Keys.PRESSED_UP
+            | index - 1 > 0 -> moveItemMenu (Left (index - 1))
+            | otherwise -> pure ()
+
+          Keys.PRESSED_DOWN
+            | index + 1 < Vector.length inventory -> moveItemMenu (Left (index + 1))
+            | otherwise -> pure ()
+
+          _otherwise -> pure ()
+
+      Right itemAction -> case itemAction of
+        World.Use -> case pressedKey of
+          Keys.PRESSED_RIGHT -> moveItemMenu (Right World.Info)
+          _otherwise -> pure ()
+
+        World.Info -> case pressedKey of
+          Keys.PRESSED_LEFT -> moveItemMenu (Right World.Use)
+          Keys.PRESSED_RIGHT -> moveItemMenu (Right World.Drop)
+          _otherwise -> pure ()
+
+        World.Drop -> case pressedKey of
+          Keys.PRESSED_LEFT -> moveItemMenu (Right World.Info)
           _otherwise -> pure ()
 
     World.CellMenu cellAction -> case cellAction of
       World.SayHello -> case pressedKey of
-        Keys.PRESSED_DOWN -> setCellAction World.AboutYourself
+        Keys.PRESSED_DOWN -> moveCellMenu World.AboutYourself
         _otherwise -> pure ()
 
       World.AboutYourself -> case pressedKey of
-        Keys.PRESSED_UP -> setCellAction World.SayHello
-        Keys.PRESSED_DOWN -> setCellAction World.CallHerMom
+        Keys.PRESSED_UP -> moveCellMenu World.SayHello
+        Keys.PRESSED_DOWN -> moveCellMenu World.CallHerMom
         _otherwise -> pure ()
 
       World.CallHerMom -> case pressedKey of
-        Keys.PRESSED_UP -> setCellAction World.AboutYourself
-        Keys.PRESSED_DOWN -> setCellAction World.Flirt
+        Keys.PRESSED_UP -> moveCellMenu World.AboutYourself
+        Keys.PRESSED_DOWN -> moveCellMenu World.Flirt
         _otherwise -> pure ()
 
       World.Flirt -> case pressedKey of
-        Keys.PRESSED_UP -> setCellAction World.CallHerMom
-        Keys.PRESSED_DOWN -> setCellAction World.PuzzleHelp
+        Keys.PRESSED_UP -> moveCellMenu World.CallHerMom
+        Keys.PRESSED_DOWN -> moveCellMenu World.PuzzleHelp
         _otherwise -> pure ()
 
       World.PuzzleHelp -> case pressedKey of
-        Keys.PRESSED_UP -> setCellAction World.Flirt
+        Keys.PRESSED_UP -> moveCellMenu World.Flirt
         _otherwise -> pure ()
 
     _otherwise -> pure ()
 
-    where setDefaultFocus newFocus = do
-            -- | This sound is wrong, but I wasn't able to find the correct one,
-            -- | so I'll stick with this for some time.
-            Audio.playSound "yeah"
-            setMenuState (World.DefaultMenu newFocus)
+    where moveDefaultMenu direction = do
+            Audio.playSound "menu-move"
+            setMenuState (World.DefaultMenu direction)
 
-          setCellAction cellAction = do
-            Audio.playSound "yeah"
-            setMenuState (World.CellMenu cellAction)
+          moveCellMenu direction = do
+            Audio.playSound "menu-move"
+            setMenuState (World.CellMenu direction)
+
+          moveItemMenu direction = do
+            Audio.playSound "menu-move"
+            setMenuState (World.ItemMenu direction)
 
 handleMenuAction :: SDL.EventPayload -> World.MenuState -> World.RSystem ()
 handleMenuAction pressedKey menuState =
@@ -200,6 +233,39 @@ handleKeyboardState = do
          | keyIs SDL.ScancodeRight -> moveFrisk Characters.MoveRight
          | otherwise -> stop friskEntity "frisk"
 
+handleInGameAction :: SDL.EventPayload -> World.RSystem ()
+handleInGameAction = \ case
+  Keys.PRESSED_Z ->
+    Apecs.cmapM_ \ (Characters.Frisk, Physics.Position friskPosition) -> do
+      Apecs.cmapM_ \ (item, Physics.Position itemPosition, itemEntity) ->
+        when (Linear.norm (itemPosition - friskPosition) < 50) do
+          Apecs.global Apecs.$~ \ (World.Inventory inventory) ->
+            World.Inventory (inventory `Vector.snoc` item)
+
+          Audio.playSound "item-equiped"
+          Spawn.destroyItem itemEntity
+          Script.sayDefault World.Top ("* You found the " <> Text.pack (show item) <> ".")
+
+      Apecs.cmapM_ \ (World.Lever, Physics.Position leverPosition, leverEntity) -> do
+        when (Linear.norm (leverPosition - friskPosition) < 30) do
+          leverEntity Apecs.$~ \ (World.Pressed pressed) ->
+            World.Pressed (not pressed)
+
+          Audio.playSound "lever-toggle"
+          Script.sayDefault World.Bottom "* You've successfully toggled this lever."
+
+      World.TextBox {..} <- Apecs.get Apecs.global
+      when (_textBoxOpened && not _textBoxActive) do
+        Apecs.global Apecs.$~ set World.textBoxOpened False
+
+  Keys.PRESSED_X -> do
+    World.TextBox {_textBoxOpened} <- Apecs.get Apecs.global
+    when _textBoxOpened do
+      Apecs.global Apecs.$~ \ textBox@World.TextBox {..} ->
+        textBox & World.textBoxVisibleChunk .~ Text.length _textBoxCurrentText - 1
+
+  _otherwise -> pure ()
+
 handleEvent :: SDL.EventPayload -> World.RSystem ()
 handleEvent = \ case
   Keys.PRESSED_C -> toggleMenu
@@ -216,10 +282,11 @@ handleEvent = \ case
 
   _otherwise -> do
     World.Menu {..} <- Apecs.get Apecs.global
-    when _menuOpened do
-      stopFrisk
-      handleMenuCursor _otherwise _menuState
-      handleMenuAction _otherwise _menuState
+    if | not _menuOpened -> handleInGameAction _otherwise
+       | otherwise -> do
+           stopFrisk
+           handleMenuCursor _otherwise _menuState
+           handleMenuAction _otherwise _menuState
 
   where moveFrisk direction = Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
           move friskEntity direction "frisk"
@@ -229,20 +296,6 @@ handleEvent = \ case
 
         setFriskSpeed speed = Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
           friskEntity Apecs.$= speed
-
-        leverAction =
-          Apecs.cmapM_ \ (World.Lever, Physics.Position leverP, World.Pressed pressed, lever) ->
-            Apecs.cmapM_ \ (Characters.Frisk, Physics.Position friskP) -> do
-              Apecs.modify lever \ (World.Pressed p) ->
-                if Linear.norm (leverP - friskP) < 30
-                   then World.Pressed (not p)
-                        else World.Pressed p
-
-              if not pressed
-               then do Spawn.spawnFroggit (EApecs.mkPosition 300 400)
-                       Script.say "I have no reason to live" 0.09 Nothing "default-voice"
-                    else do Spawn.killFroggits
-                            Apecs.modify Apecs.global (set World.opened False)
 
 handleEvents :: World.RSystem ()
 handleEvents = do

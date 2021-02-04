@@ -43,6 +43,18 @@ killFroggits :: World.RSystem ()
 killFroggits = Apecs.cmapM_ \ (Characters.Froggit, froggitEntity) ->
   Apecs.destroy froggitEntity (Proxy @Characters.Froggit)
 
+spawnItem :: Characters.Item -> Physics.Position -> World.RSystem ()
+spawnItem item position =
+  EApecs.newEntity_ (
+    item
+    , Physics.StaticBody
+    , position
+    )
+
+destroyItem :: Apecs.Entity -> World.RSystem ()
+destroyItem itemEntity =
+  Apecs.destroy itemEntity (Proxy @Characters.Item)
+
 spawnLever :: Physics.Position -> World.RSystem ()
 spawnLever position =
   EApecs.newEntity_ (

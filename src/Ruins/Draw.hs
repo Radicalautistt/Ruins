@@ -15,8 +15,11 @@ import Data.Bool (bool)
 import Data.Maybe (fromJust)
 import qualified Data.Text as Text
 import Foreign.C.Types (CInt (..))
+import Data.Foldable (for_)
 import Control.Lens (ix, (^.), (&~), (-=), (+=))
 import Control.Monad (when, unless)
+import Control.Monad.IO.Class (MonadIO (..))
+import Data.IORef
 import qualified Ruins.Resources as Resources
 import qualified Ruins.Miscellaneous as Misc
 import qualified Ruins.Extra.SDL as ESDL
@@ -93,13 +96,35 @@ drawText renderer text fontName targetRectangle = do
 drawTextBox :: SDL.Renderer -> World.RSystem ()
 drawTextBox renderer = do
   World.TextBox {..} <- Apecs.get Apecs.global
-  when _opened do
-    case fromIntegral (_visibleChunk * 13) of
-      textWidth -> do
-        drawRectangle renderer textBox black white
-        drawText renderer (Text.take _visibleChunk _currentText)
-          "dialogue" (ESDL.mkRectangle (370, 520) (textWidth, 50))
-        where textBox = ESDL.mkRectangle (340, 500) (700, 200)
+  when _textBoxOpened do
+    case fromIntegral (_textBoxVisibleChunk * 20) of
+      textWidth -> case _textBoxPosition of
+        World.Top -> do
+          drawRectangle renderer (ESDL.mkRectangle (340, 10) (700, 200)) black white
+          drawText renderer (Text.take _textBoxVisibleChunk _textBoxCurrentText)
+            "dialogue" (ESDL.mkRectangle (370, 30) (textWidth, 50))
+
+        World.Bottom -> do
+          drawRectangle renderer (ESDL.mkRectangle (340, 500) (700, 200)) black white
+          drawText renderer (Text.take _textBoxVisibleChunk _textBoxCurrentText)
+            "dialogue" (ESDL.mkRectangle (370, 520) (textWidth, 50))
+
+drawItems :: SDL.Renderer -> World.RSystem ()
+drawItems renderer = Apecs.cmapM_ \ (item, EApecs.RXY x y) ->
+  case item of
+    Characters.ToyKnife ->
+      drawItem (ESDL.mkRectangle (174, 230) (14, 13)) (ESDL.mkRectangle (x, y) (50, 42))
+
+    Characters.FadedRibbon ->
+      drawItem (ESDL.mkRectangle (190, 230) (14, 12)) (ESDL.mkRectangle (x, y) (50, 42))
+
+    Characters.ButterscotchPie ->
+      drawItem (ESDL.mkRectangle (152, 230) (20, 14)) (ESDL.mkRectangle (x, y) (60, 42))
+
+    Characters.MonsterCandy -> pure ()
+
+  where drawItem source target =
+          drawPart renderer "ruins-tiles" source target
 
 drawHeart :: SDL.Renderer -> ESDL.Rect -> World.RSystem ()
 drawHeart renderer targetRectangle =
@@ -159,10 +184,23 @@ drawMenu renderer = Apecs.cmapM_ \ (Characters.Frisk, Characters.HP hp) -> do
     drawMenuText "STAT" (ESDL.mkRectangle (140, 370) (85, 50))
     drawMenuText "CELL" (ESDL.mkRectangle (140, 430) (85, 50))
     case _menuState of
-      World.ItemMenu _ -> do
+      World.ItemMenu indexOrAction -> do
         drawMenuChunk (ESDL.mkRectangle (305, 100) (530, 500))
-        drawHeart renderer (ESDL.mkRectangle (338, 520) (30, 30))
         drawMenuText "USE        INFO        DROP" (ESDL.mkRectangle (378, 510) (405, 50))
+
+        World.Inventory inventory <- Apecs.get Apecs.global
+        currentYPosition <- liftIO (newIORef @CInt 130)
+        for_ inventory \ item -> do
+          yPosition <- liftIO (readIORef currentYPosition)
+          drawMenuText (Text.pack (show item)) (ESDL.mkRectangle (380, yPosition) (fromIntegral $ length (show item) * 20, 50))
+          liftIO (modifyIORef' currentYPosition (+ 50))
+
+        case indexOrAction of
+          Left _index -> pure ()
+          Right itemAction -> case itemAction of
+            World.Use -> drawHeart renderer (ESDL.mkRectangle (338, 520) (30, 30))
+            World.Info -> drawHeart renderer (ESDL.mkRectangle (485, 520) (30, 30))
+            World.Drop -> drawHeart renderer (ESDL.mkRectangle (650, 520) (30, 30))
 
       World.DefaultMenu menuFocus ->
         case menuFocus of
@@ -201,27 +239,35 @@ drawMenu renderer = Apecs.cmapM_ \ (Characters.Frisk, Characters.HP hp) -> do
         drawMenuText text rectangle =
           drawText renderer text "dialogue" rectangle
 
+drawBackground :: SDL.Renderer -> World.RSystem ()
+drawBackground renderer = do
+  (World.Camera {..},
+   Sprites.Background {..}) <- Apecs.get Apecs.global
+
+  case round (_cameraOffset ^. Linear._x) of
+    xoffset
+      | not _cameraActive ->
+          SDL.copy renderer
+            _backgroundTexture Nothing (Just _backgroundRectangle)
+
+      | otherwise ->
+          SDL.copy renderer
+            _backgroundTexture
+            (Just do ESDL.mkRectangle (xoffset, 0) (fromJust _cameraViewport))
+            (Just _backgroundRectangle)
+
 drawGame :: World.RSystem ()
 drawGame = do
   renderer <- Apecs.get Apecs.global
-  World.Camera {..} <- Apecs.get Apecs.global
   SDL.clear renderer
+
   SDL.rendererDrawColor renderer SDL.$= black
-  Sprites.Background {..} <- Apecs.get Apecs.global
-
-  let xoffset = round (_cameraOffset ^. Linear._x)
-  let sourceRectangle =
-        if not _cameraActive
-           then Nothing
-                else (Just do ESDL.mkRectangle (xoffset, 0) (fromJust _cameraViewport))
-
-  SDL.copy renderer _backgroundTexture
-    sourceRectangle
-    (Just _backgroundRectangle)
-
+  drawBackground renderer
   drawLevers renderer
   drawFroggits renderer
+  drawItems renderer
   drawFrisk renderer
   drawTextBox renderer
   drawMenu renderer
+
   SDL.present renderer

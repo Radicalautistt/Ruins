@@ -48,8 +48,21 @@ instance Aeson.FromJSON Action where
 newtype HP = HP Int
   deriving newtype Num
 
+data Item = ToyKnife
+   | FadedRibbon
+   | MonsterCandy
+   | ButterscotchPie
+
+instance Show Item where
+  show = \ case
+    ToyKnife -> "Toy Knife"
+    FadedRibbon -> "Faded Ribbon"
+    MonsterCandy -> "Monster Candy"
+    ButterscotchPie -> "Butterscotch Pie"
+
 Apecs.makeMapComponents [
   ''HP
+  , ''Item
   , ''Action
   , ''Speed
   , ''InFight

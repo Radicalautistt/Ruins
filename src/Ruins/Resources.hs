@@ -121,10 +121,13 @@ loadRoom roomFile = do
     World.cameraActive .= _roomCameraActive
     World.cameraViewport .= _roomCameraViewport
 
-  World.SoundMuted muted <- Apecs.get Apecs.global
-  unless muted do
-    Mixer.playMusic Mixer.Forever =<<
-      getResource World.music _roomMusic
+  case _roomMusic of
+    Nothing -> Mixer.haltMusic
+    Just musicName -> do
+      World.SoundMuted muted <- Apecs.get Apecs.global
+      unless muted do
+        Mixer.playMusic Mixer.Forever =<<
+          getResource World.music musicName
 
   Apecs.cmapM_ \ (Characters.Frisk, friskEntity) ->
     friskEntity Apecs.$=

@@ -12,7 +12,6 @@ module Ruins.Components.World (
      , Menu (..)
      , Room (..)
      , Time (..)
-     , Item (..)
      , Lever (..)
      , Camera (..)
      , TextBox (..)
@@ -20,6 +19,7 @@ module Ruins.Components.World (
      , QuitGame (..)
      , MenuFocus (..)
      , MenuState (..)
+     , Inventory (..)
      , Resources (..)
      , ItemAction (..)
      , CellAction (..)
@@ -27,6 +27,7 @@ module Ruins.Components.World (
      , SoundMuted (..)
      , SoundVolume (..)
      , Divarication (..)
+     , TextBoxPosition (..)
   -- * world initialization
      , initRuins
   -- * lenses
@@ -34,12 +35,14 @@ module Ruins.Components.World (
      , fonts
      , sounds
      , music
-     , sprite
-     , opened
-     , currentText
-     , letterDelay
-     , voiceSound
-     , visibleChunk
+     , textBoxSprite
+     , textBoxOpened
+     , textBoxActive
+     , textBoxPosition
+     , textBoxCurrentText
+     , textBoxLetterDelay
+     , textBoxVoiceSound
+     , textBoxVisibleChunk
      , menuOpened
      , menuState
      , cameraActive
@@ -109,7 +112,7 @@ instance Monoid Divarication where mempty = Divarication Vector.empty
 -- | Example config can be found at assets/rooms/debug.json
 data Room = Room {
    _roomSize :: Linear.V2 CInt
- , _roomMusic :: Misc.Name
+ , _roomMusic :: Maybe Misc.Name
  , _roomBoundary :: (Double, Double, Double, Double)
  , _roomBackground :: Either Sprites.Sprite Sprites.TileMap
  , _roomCameraActive :: Bool
@@ -126,7 +129,7 @@ deriving anyclass instance Aeson.FromJSON element =>
 instance Aeson.FromJSON Room where
   parseJSON = Aeson.withObject "room configuration" \ room -> do
     _roomSize <- room .: "room-size"
-    _roomMusic <- room .: "music"
+    _roomMusic <- room .:? "music"
     _roomBoundary <- room .: "boundary"
     _roomBackground <- room .: "background"
     _roomCameraActive <- room .: "camera-active"
@@ -137,10 +140,8 @@ instance Aeson.FromJSON Room where
     _roomBackgroundRectangle <- room .: "background-rectangle"
     pure Room {..}
 
-data Item = ToyKnife
-   | FadedRibbon
-   | MonsterCandy
-   | ButterscotchPie
+newtype Inventory = Inventory (Vector Characters.Item)
+  deriving newtype (Semigroup, Monoid)
 
 data ItemAction = Use
    | Info
@@ -159,7 +160,7 @@ data MenuFocus = ItemFocus
 data MenuState = StatMenu
    | CellMenu CellAction
    | DefaultMenu MenuFocus
-   | ItemMenu (Either Item ItemAction)
+   | ItemMenu (Either Int ItemAction)
 
 data Menu = Menu {
   _menuOpened :: Bool
@@ -169,19 +170,24 @@ data Menu = Menu {
 instance Semigroup Menu where _previous <> next = next
 instance Monoid Menu where mempty = Menu False (DefaultMenu ItemFocus)
 
+data TextBoxPosition = Top
+   | Bottom
+
 -- | Global text box component.
 -- | It is handled by the Ruins.Step.stepTextBox function.
 data TextBox = TextBox {
-  _sprite :: Maybe Sprites.Sprite
-  , _opened :: Bool
-  , _currentText :: Text
-  , _letterDelay :: Double
-  , _voiceSound :: Misc.Name
-  , _visibleChunk :: Int
+  _textBoxSprite :: Maybe Sprites.Sprite
+  , _textBoxOpened :: Bool
+  , _textBoxActive :: Bool
+  , _textBoxCurrentText :: Text
+  , _textBoxLetterDelay :: Double
+  , _textBoxVoiceSound :: Misc.Name
+  , _textBoxVisibleChunk :: Int
+  , _textBoxPosition :: TextBoxPosition
 }
 
 instance Semigroup TextBox where _previous <> next = next
-instance Monoid TextBox where mempty = TextBox Nothing False Text.empty 0.1 "default-voice" 1
+instance Monoid TextBox where mempty = TextBox Nothing False False Text.empty 0.1 "default-voice" 1 Bottom
 
 type ResourceMap resource = HashMap Misc.Name resource
 
@@ -244,6 +250,7 @@ traverse EApecs.makeGlobalComponent [
   , ''Camera
   , ''TextBox
   , ''QuitGame
+  , ''Inventory
   , ''Resources
   , ''SDL.Window
   , ''SoundMuted
@@ -266,6 +273,7 @@ Apecs.makeWorld "Ruins" [
   , ''TextBox
   , ''Pressed
   , ''QuitGame
+  , ''Inventory
   , ''Resources
   , ''SDL.Window
   , ''SoundMuted
@@ -276,6 +284,7 @@ Apecs.makeWorld "Ruins" [
   , ''Physics.Physics
 
   , ''Characters.HP
+  , ''Characters.Item
   , ''Characters.Frisk
   , ''Characters.Speed
   , ''Characters.Action

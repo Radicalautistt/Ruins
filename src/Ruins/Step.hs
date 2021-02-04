@@ -72,21 +72,22 @@ stepTextBox :: World.Time -> World.RSystem ()
 stepTextBox deltaTime = do
   currentTime <- Apecs.get Apecs.global
   Apecs.modify Apecs.global \ textBox@World.TextBox {..} ->
-    if Text.take _visibleChunk _currentText == _currentText
-       then textBox
-            else bool textBox (textBox & World.visibleChunk +~ 1)
-                   (_opened && stepNeeded currentTime deltaTime _letterDelay)
+    case _textBoxOpened && stepNeeded currentTime deltaTime _textBoxLetterDelay of
+      shouldStep
+        | Text.take _textBoxVisibleChunk _textBoxCurrentText == _textBoxCurrentText ->
+            textBox & World.textBoxActive .~ False
+        | otherwise -> bool textBox (textBox & World.textBoxVisibleChunk +~ 1) shouldStep
 
 voiceTextBox :: World.Time -> World.RSystem ()
 voiceTextBox deltaTime = do
   currentTime <- Apecs.get Apecs.global
   World.TextBox {..} <- Apecs.get Apecs.global
-  voice <- Resources.getResource World.sounds _voiceSound
-  when (_opened && stepNeeded currentTime deltaTime _letterDelay
-    && (Text.last (Text.take _visibleChunk _currentText) /= ' ')) do
-    Mixer.setChannels (Text.length _currentText)
+  voice <- Resources.getResource World.sounds _textBoxVoiceSound
+  when (_textBoxOpened && stepNeeded currentTime deltaTime _textBoxLetterDelay
+    && (Text.last (Text.take _textBoxVisibleChunk _textBoxCurrentText) /= ' ')) do
+    Mixer.setChannels (Text.length _textBoxCurrentText)
     Mixer.setVolume 30 voice
-    void (liftIO (Mixer.playOn (fromIntegral _visibleChunk) Mixer.Once voice))
+    void (liftIO (Mixer.playOn (fromIntegral _textBoxVisibleChunk) Mixer.Once voice))
 
 stepCamera :: World.RSystem ()
 stepCamera = Apecs.cmapM_ \ (Characters.Frisk, Physics.Position friskPosition) ->

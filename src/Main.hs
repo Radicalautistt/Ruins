@@ -26,6 +26,10 @@ initGame window renderer = do
 
   Spawn.spawnFrisk (EApecs.mkPosition 0 400) False Characters.MoveDown
   Spawn.spawnLever (EApecs.mkPosition 40 300)
+  Spawn.spawnFroggit (EApecs.mkPosition 300 400)
+  Spawn.spawnItem Characters.ToyKnife (EApecs.mkPosition 400 590)
+  Spawn.spawnItem Characters.FadedRibbon (EApecs.mkPosition 500 590)
+  Spawn.spawnItem Characters.ButterscotchPie (EApecs.mkPosition 600 590)
 
 gameLoop :: World.RSystem ()
 gameLoop = do
